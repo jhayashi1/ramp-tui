@@ -34,6 +34,12 @@ In the gallery: `enter` plays the selected animation, `a` renders a new gif,
 `d` deletes an entry, `/` filters. In the player: `space` pauses, `left`/`right`
 switch between animations, `esc` returns to the gallery.
 
+The `a` prompt has fzf-style fuzzy completion: as you type a path it lists
+matching directories and `.gif` files, `tab` completes the selection,
+`up`/`down` (or `ctrl+p`/`ctrl+n`) move through the matches, and `enter`
+descends into a directory or renders the chosen gif. Paths starting with `~`
+expand to your home directory, both here and in CLI arguments.
+
 ### Cross-machine playback
 
 `.frames` files are self-contained (frames, delays, dimensions, gzipped).

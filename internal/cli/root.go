@@ -9,6 +9,7 @@ import (
 
 	"github.com/jhayashi1/ascii-tui/internal/engine"
 	"github.com/jhayashi1/ascii-tui/internal/library"
+	"github.com/jhayashi1/ascii-tui/internal/pathutil"
 	"github.com/jhayashi1/ascii-tui/internal/player"
 	"github.com/jhayashi1/ascii-tui/internal/tui"
 )
@@ -27,7 +28,7 @@ var rootCmd = &cobra.Command{
 		if len(args) == 0 {
 			return tui.Run(dir)
 		}
-		return renderAndPlay(cmd, dir, args[0])
+		return renderAndPlay(cmd, dir, pathutil.ExpandTilde(args[0]))
 	},
 }
 

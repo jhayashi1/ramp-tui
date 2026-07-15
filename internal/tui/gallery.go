@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -28,9 +27,11 @@ func (e entryItem) FilterValue() string { return e.Name }
 type galleryModel struct {
 	dir    string
 	list   list.Model
-	input  textinput.Model
+	picker pathInput
 	typing bool
 	status string
+	width  int
+	height int
 }
 
 func newGallery(dir string) (galleryModel, error) {
@@ -41,10 +42,7 @@ func newGallery(dir string) (galleryModel, error) {
 	l.SetStatusBarItemName("animation", "animations")
 	l.DisableQuitKeybindings()
 
-	input := textinput.New()
-	input.Placeholder = "path/to/animation.gif"
-
-	g := galleryModel{dir: dir, list: l, input: input}
+	g := galleryModel{dir: dir, list: l, picker: newPathInput()}
 	if err := g.reload(); err != nil {
 		return g, err
 	}
@@ -74,8 +72,25 @@ func (g *galleryModel) entries() []library.Entry {
 }
 
 func (g *galleryModel) setSize(width, height int) {
-	g.list.SetSize(width, max(0, height-3))
-	g.input.Width = max(10, width-8)
+	g.width, g.height = width, height
+	g.picker.setWidth(max(10, width-8))
+	g.layout()
+}
+
+// layout sizes the list, reserving room for the completion rows while
+// the path prompt is open so the view height stays constant.
+func (g *galleryModel) layout() {
+	reserved := 3
+	if g.typing {
+		reserved += maxVisibleSuggestions
+	}
+	g.list.SetSize(g.width, max(0, g.height-reserved))
+}
+
+func (g *galleryModel) stopTyping() {
+	g.typing = false
+	g.picker.blur()
+	g.layout()
 }
 
 func (g galleryModel) update(msg tea.Msg) (galleryModel, tea.Cmd) {
@@ -97,8 +112,8 @@ func (g galleryModel) update(msg tea.Msg) (galleryModel, tea.Cmd) {
 		case "a":
 			g.typing = true
 			g.status = ""
-			g.input.SetValue("")
-			return g, g.input.Focus()
+			g.layout()
+			return g, g.picker.focus()
 		case "d":
 			if item, ok := g.list.SelectedItem().(entryItem); ok {
 				if err := os.Remove(item.Path); err != nil {
@@ -120,22 +135,29 @@ func (g galleryModel) updateTyping(msg tea.Msg) (galleryModel, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok {
 		switch key.String() {
 		case "enter":
-			path := strings.TrimSpace(g.input.Value())
-			g.typing = false
-			g.input.Blur()
-			if path == "" {
+			path, ok := g.picker.accept()
+			if !ok {
 				return g, nil
 			}
+			g.stopTyping()
 			return g, func() tea.Msg { return startRenderMsg{gifPath: path} }
+		case "tab":
+			g.picker.complete()
+			return g, nil
+		case "down", "ctrl+n":
+			g.picker.moveSelection(1)
+			return g, nil
+		case "up", "ctrl+p", "shift+tab":
+			g.picker.moveSelection(-1)
+			return g, nil
 		case "esc":
-			g.typing = false
-			g.input.Blur()
+			g.stopTyping()
 			return g, nil
 		}
 	}
 
 	var cmd tea.Cmd
-	g.input, cmd = g.input.Update(msg)
+	g.picker, cmd = g.picker.update(msg)
 	return g, cmd
 }
 
@@ -144,8 +166,8 @@ func (g galleryModel) view() string {
 	b.WriteString(g.list.View())
 	b.WriteByte('\n')
 	if g.typing {
-		b.WriteString(promptStyle.Render("render gif: "+g.input.View()) + "\n")
-		b.WriteString(helpStyle.Render("[enter] render  [esc] cancel"))
+		b.WriteString(g.picker.view())
+		b.WriteString(helpStyle.Render("[enter] render/open  [tab] complete  [↑/↓] select  [esc] cancel"))
 		return b.String()
 	}
 	if g.status != "" {
