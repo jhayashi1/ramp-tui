@@ -62,6 +62,32 @@ func TestDecodeRejectsUnknownVersion(t *testing.T) {
 	}
 }
 
+func TestDecodeRejectsMismatchedLengths(t *testing.T) {
+	anim := &Animation{
+		Frames: []string{"a", "b"},
+		Delays: []time.Duration{time.Millisecond},
+	}
+	var buf bytes.Buffer
+	if err := Encode(&buf, anim); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	_, err := Decode(&buf)
+	if err == nil || !strings.Contains(err.Error(), "corrupt") {
+		t.Errorf("err = %v, want corrupt frames file error", err)
+	}
+}
+
+func TestDecodeRejectsEmptyAnimation(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Encode(&buf, &Animation{}); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	_, err := Decode(&buf)
+	if err == nil || !strings.Contains(err.Error(), "no frames") {
+		t.Errorf("err = %v, want no frames error", err)
+	}
+}
+
 func TestDecodeRejectsTruncated(t *testing.T) {
 	if _, err := Decode(strings.NewReader("ASCII")); err == nil {
 		t.Error("want error for truncated input, got nil")

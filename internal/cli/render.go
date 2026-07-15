@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/jhayashi1/ascii-tui/internal/engine"
 	"github.com/jhayashi1/ascii-tui/internal/frames"
@@ -39,7 +40,7 @@ func init() {
 				if err != nil {
 					return err
 				}
-			} else if err := saveTo(path, anim); err != nil {
+			} else if err := library.Write(path, anim); err != nil {
 				return err
 			}
 
@@ -59,6 +60,12 @@ func init() {
 }
 
 func renderGif(gifPath string, opts engine.Options, progressOut io.Writer) (*frames.Animation, error) {
+	if opts.Width == 0 && opts.Height == 0 {
+		if w, h, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 0 && h > 1 {
+			opts.MaxWidth, opts.MaxHeight = w, h-1
+		}
+	}
+
 	f, err := os.Open(gifPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening gif: %w", err)
@@ -74,16 +81,4 @@ func renderGif(gifPath string, opts engine.Options, progressOut io.Writer) (*fra
 	}
 	anim.SourceName = filepath.Base(gifPath)
 	return anim, nil
-}
-
-func saveTo(path string, anim *frames.Animation) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("creating frames file: %w", err)
-	}
-	if err := frames.Encode(f, anim); err != nil {
-		f.Close()
-		return err
-	}
-	return f.Close()
 }

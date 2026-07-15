@@ -60,5 +60,12 @@ func Decode(r io.Reader) (*Animation, error) {
 	if err := gob.NewDecoder(zr).Decode(&anim); err != nil {
 		return nil, fmt.Errorf("decoding animation: %w", err)
 	}
+	if len(anim.Frames) == 0 {
+		return nil, errors.New("frames file contains no frames")
+	}
+	if len(anim.Delays) != len(anim.Frames) {
+		return nil, fmt.Errorf("frames file is corrupt: %d frames but %d delays",
+			len(anim.Frames), len(anim.Delays))
+	}
 	return &anim, nil
 }

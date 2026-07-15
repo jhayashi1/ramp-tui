@@ -1,10 +1,7 @@
 package cli
 
 import (
-	"context"
 	"io"
-	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 
@@ -30,12 +27,7 @@ func init() {
 				return err
 			}
 			opts.Loop = !once
-
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-			defer stop()
-
-			player.EnableVirtualTerminal(os.Stdout)
-			return player.Play(ctx, os.Stdout, anim, opts)
+			return player.Run(anim, opts)
 		},
 	}
 
@@ -44,10 +36,14 @@ func init() {
 	rootCmd.AddCommand(playCmd)
 }
 
+func isGif(path string) bool {
+	return strings.EqualFold(filepath.Ext(path), ".gif")
+}
+
 // loadAnimation reads a frames file, or renders a .gif in memory with
 // default options.
 func loadAnimation(path string, progressOut io.Writer) (*frames.Animation, error) {
-	if strings.EqualFold(filepath.Ext(path), ".gif") {
+	if isGif(path) {
 		return renderGif(path, engine.Options{Colored: true}, progressOut)
 	}
 	return library.Load(path)

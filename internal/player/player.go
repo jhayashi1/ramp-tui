@@ -5,8 +5,13 @@ package player
 import (
 	"bufio"
 	"context"
+	"errors"
+	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jhayashi1/ascii-tui/internal/frames"
@@ -27,10 +32,27 @@ type Options struct {
 	Speed float64
 }
 
+// Run plays the animation on stdout, enabling Windows VT processing
+// and restoring the terminal on Ctrl+C or SIGTERM.
+func Run(anim *frames.Animation, opts Options) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	EnableVirtualTerminal(os.Stdout)
+	return Play(ctx, os.Stdout, anim, opts)
+}
+
 // Play writes the animation to w frame by frame until ctx is canceled
 // or, when not looping, one pass completes. The terminal state is
 // restored before returning.
 func Play(ctx context.Context, w io.Writer, anim *frames.Animation, opts Options) error {
+	if len(anim.Frames) == 0 {
+		return errors.New("animation has no frames")
+	}
+	if len(anim.Delays) != len(anim.Frames) {
+		return fmt.Errorf("animation is corrupt: %d frames but %d delays",
+			len(anim.Frames), len(anim.Delays))
+	}
+
 	speed := opts.Speed
 	if speed <= 0 {
 		speed = 1

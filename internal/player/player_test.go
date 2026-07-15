@@ -39,6 +39,19 @@ func TestPlaySinglePass(t *testing.T) {
 	}
 }
 
+func TestPlayRejectsInvalidAnimation(t *testing.T) {
+	var buf bytes.Buffer
+	empty := &frames.Animation{}
+	if err := Play(context.Background(), &buf, empty, Options{Loop: true}); err == nil {
+		t.Error("want error for empty animation, got nil")
+	}
+
+	mismatched := &frames.Animation{Frames: []string{"x"}}
+	if err := Play(context.Background(), &buf, mismatched, Options{}); err == nil {
+		t.Error("want error for mismatched delays, got nil")
+	}
+}
+
 func TestPlayStopsOnCancel(t *testing.T) {
 	anim := &frames.Animation{
 		Frames: []string{"x"},

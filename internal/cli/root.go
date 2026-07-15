@@ -2,12 +2,8 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -45,7 +41,7 @@ func Execute() {
 // renderAndPlay is the shortcut path: render a gif into the library,
 // then loop it in the raw player.
 func renderAndPlay(cmd *cobra.Command, dir, path string) error {
-	if !strings.EqualFold(filepath.Ext(path), ".gif") {
+	if !isGif(path) {
 		return fmt.Errorf("expected a .gif file, got %s", path)
 	}
 	anim, err := renderGif(path, engine.Options{Colored: true}, cmd.ErrOrStderr())
@@ -58,8 +54,5 @@ func renderAndPlay(cmd *cobra.Command, dir, path string) error {
 	}
 	fmt.Fprintf(cmd.ErrOrStderr(), "saved to library: %s\n", saved)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	player.EnableVirtualTerminal(os.Stdout)
-	return player.Play(ctx, os.Stdout, anim, player.Options{Loop: true, Speed: 1})
+	return player.Run(anim, player.Options{Loop: true, Speed: 1})
 }

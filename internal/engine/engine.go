@@ -7,10 +7,7 @@ import (
 	"image/draw"
 	"image/gif"
 	"io"
-	"os"
 	"time"
-
-	"golang.org/x/term"
 
 	"github.com/jhayashi1/ascii-tui/internal/frames"
 )
@@ -22,12 +19,22 @@ const (
 	// Terminal cells are roughly twice as tall as they are wide, so the
 	// image is sampled at half vertical resolution to preserve aspect.
 	cellAspect = 2
+
+	defaultMaxWidth  = 80
+	defaultMaxHeight = 23
 )
 
 // Options control how a GIF is converted to ASCII frames.
 type Options struct {
-	Width      int
-	Height     int
+	// Width and Height set the exact character grid; when only one is
+	// set the other is derived from the image aspect ratio.
+	Width  int
+	Height int
+	// MaxWidth and MaxHeight bound the auto-fitted grid when Width and
+	// Height are both zero. Callers resolve these from their display;
+	// the engine never inspects the terminal itself.
+	MaxWidth   int
+	MaxHeight  int
 	Colored    bool
 	Complex    bool
 	CustomRamp string
@@ -44,16 +51,17 @@ func Render(r io.Reader, opts Options, onProgress func(done, total int)) (*frame
 		return nil, fmt.Errorf("gif contains no frames")
 	}
 
-	imgs := compositeFrames(g)
-	bounds := imgs[0].Bounds()
+	bounds := canvasBounds(g)
 	cols, rows := targetGrid(bounds.Dx(), bounds.Dy(), opts)
 	ramp := []rune(opts.ramp())
+	comp := newCompositor(bounds)
 
-	total := len(imgs)
+	total := len(g.Image)
 	rendered := make([]string, total)
 	delays := make([]time.Duration, total)
-	for i, img := range imgs {
-		rendered[i] = frameToASCII(img, cols, rows, opts.Colored, ramp)
+	for i, src := range g.Image {
+		frame := comp.compose(src, disposalAt(g, i))
+		rendered[i] = frameToASCII(frame, cols, rows, opts.Colored, ramp)
 		delays[i] = delayAt(g, i)
 		if onProgress != nil {
 			onProgress(i+1, total)
@@ -96,6 +104,7 @@ func delayAt(g *gif.GIF, i int) time.Duration {
 // targetGrid picks the character grid size, preserving image aspect
 // ratio when only one dimension (or neither) is specified.
 func targetGrid(imgW, imgH int, opts Options) (cols, rows int) {
+	imgW, imgH = max(1, imgW), max(1, imgH)
 	switch {
 	case opts.Width > 0 && opts.Height > 0:
 		return opts.Width, opts.Height
@@ -105,44 +114,62 @@ func targetGrid(imgW, imgH int, opts Options) (cols, rows int) {
 		return max(1, opts.Height*imgW*cellAspect/imgH), opts.Height
 	}
 
-	termW, termH := 80, 24
-	if w, h, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w > 0 && h > 0 {
-		termW, termH = w, h
+	maxW, maxH := opts.MaxWidth, opts.MaxHeight
+	if maxW <= 0 {
+		maxW = defaultMaxWidth
 	}
-	cols = termW
+	if maxH <= 0 {
+		maxH = defaultMaxHeight
+	}
+	cols = maxW
 	rows = max(1, cols*imgH/(imgW*cellAspect))
-	if maxRows := termH - 1; rows > maxRows {
-		rows = max(1, maxRows)
+	if rows > maxH {
+		rows = maxH
 		cols = max(1, rows*imgW*cellAspect/imgH)
 	}
 	return cols, rows
 }
 
-// compositeFrames flattens the GIF's (possibly partial) frames onto a
-// persistent canvas, honoring per-frame disposal methods, so that every
-// returned image is a complete picture.
-func compositeFrames(g *gif.GIF) []*image.RGBA {
+func canvasBounds(g *gif.GIF) image.Rectangle {
 	bounds := image.Rect(0, 0, g.Config.Width, g.Config.Height)
 	if bounds.Empty() {
 		bounds = g.Image[0].Bounds()
 	}
-	canvas := image.NewRGBA(bounds)
-	out := make([]*image.RGBA, 0, len(g.Image))
-	for i, src := range g.Image {
-		var backup *image.RGBA
-		if disposalAt(g, i) == gif.DisposalPrevious {
-			backup = cloneRGBA(canvas)
-		}
-		draw.Draw(canvas, src.Bounds(), src, src.Bounds().Min, draw.Over)
-		out = append(out, cloneRGBA(canvas))
-		switch disposalAt(g, i) {
-		case gif.DisposalBackground:
-			draw.Draw(canvas, src.Bounds(), image.Transparent, image.Point{}, draw.Src)
-		case gif.DisposalPrevious:
-			canvas = backup
-		}
+	return bounds
+}
+
+// compositor flattens successive, possibly partial GIF frames onto a
+// persistent canvas, honoring per-frame disposal methods, so that each
+// composed result is a complete picture.
+type compositor struct {
+	canvas *image.RGBA
+	backup *image.RGBA
+	// disposal and rect describe the previously composed frame; its
+	// disposal is applied lazily at the start of the next compose.
+	disposal byte
+	rect     image.Rectangle
+}
+
+func newCompositor(bounds image.Rectangle) *compositor {
+	return &compositor{canvas: image.NewRGBA(bounds)}
+}
+
+// compose draws src onto the canvas and returns the full composited
+// frame. The returned image is reused by the next compose call and
+// must not be retained.
+func (c *compositor) compose(src *image.Paletted, disposal byte) *image.RGBA {
+	switch c.disposal {
+	case gif.DisposalBackground:
+		draw.Draw(c.canvas, c.rect, image.Transparent, image.Point{}, draw.Src)
+	case gif.DisposalPrevious:
+		c.canvas = c.backup
 	}
-	return out
+	if disposal == gif.DisposalPrevious {
+		c.backup = cloneRGBA(c.canvas)
+	}
+	draw.Draw(c.canvas, src.Bounds(), src, src.Bounds().Min, draw.Over)
+	c.disposal, c.rect = disposal, src.Bounds()
+	return c.canvas
 }
 
 func disposalAt(g *gif.GIF, i int) byte {

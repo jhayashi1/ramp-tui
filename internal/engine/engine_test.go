@@ -23,22 +23,11 @@ func paletteFrame(rect image.Rectangle, c color.RGBA) *image.Paletted {
 func TestCompositeRetainsPreviousFramePixels(t *testing.T) {
 	red := color.RGBA{R: 255, A: 255}
 	blue := color.RGBA{B: 255, A: 255}
-	g := &gif.GIF{
-		Image: []*image.Paletted{
-			paletteFrame(image.Rect(0, 0, 4, 4), red),
-			paletteFrame(image.Rect(0, 0, 1, 1), blue),
-		},
-		Delay:    []int{10, 10},
-		Disposal: []byte{gif.DisposalNone, gif.DisposalNone},
-		Config:   image.Config{Width: 4, Height: 4},
-	}
 
-	frames := compositeFrames(g)
-	if len(frames) != 2 {
-		t.Fatalf("frame count = %d, want 2", len(frames))
-	}
+	comp := newCompositor(image.Rect(0, 0, 4, 4))
+	comp.compose(paletteFrame(image.Rect(0, 0, 4, 4), red), gif.DisposalNone)
+	second := comp.compose(paletteFrame(image.Rect(0, 0, 1, 1), blue), gif.DisposalNone)
 
-	second := frames[1]
 	if got := second.RGBAAt(0, 0); got.B != 255 {
 		t.Errorf("pixel (0,0) = %v, want blue overlay", got)
 	}
@@ -50,22 +39,51 @@ func TestCompositeRetainsPreviousFramePixels(t *testing.T) {
 func TestCompositeDisposalBackgroundClears(t *testing.T) {
 	red := color.RGBA{R: 255, A: 255}
 	blue := color.RGBA{B: 255, A: 255}
-	g := &gif.GIF{
-		Image: []*image.Paletted{
-			paletteFrame(image.Rect(0, 0, 2, 2), red),
-			paletteFrame(image.Rect(0, 0, 1, 1), blue),
-		},
-		Delay:    []int{10, 10},
-		Disposal: []byte{gif.DisposalBackground, gif.DisposalNone},
-		Config:   image.Config{Width: 2, Height: 2},
-	}
 
-	frames := compositeFrames(g)
-	if got := frames[1].RGBAAt(1, 1); got.R != 0 || got.A != 0 {
+	comp := newCompositor(image.Rect(0, 0, 2, 2))
+	comp.compose(paletteFrame(image.Rect(0, 0, 2, 2), red), gif.DisposalBackground)
+	second := comp.compose(paletteFrame(image.Rect(0, 0, 1, 1), blue), gif.DisposalNone)
+
+	if got := second.RGBAAt(1, 1); got.R != 0 || got.A != 0 {
 		t.Errorf("pixel (1,1) = %v, want cleared after background disposal", got)
 	}
-	if got := frames[1].RGBAAt(0, 0); got.B != 255 {
+	if got := second.RGBAAt(0, 0); got.B != 255 {
 		t.Errorf("pixel (0,0) = %v, want blue", got)
+	}
+}
+
+func TestCompositeDisposalPreviousRestores(t *testing.T) {
+	red := color.RGBA{R: 255, A: 255}
+	blue := color.RGBA{B: 255, A: 255}
+	green := color.RGBA{G: 255, A: 255}
+
+	comp := newCompositor(image.Rect(0, 0, 2, 2))
+	comp.compose(paletteFrame(image.Rect(0, 0, 2, 2), red), gif.DisposalNone)
+	comp.compose(paletteFrame(image.Rect(0, 0, 1, 1), blue), gif.DisposalPrevious)
+	third := comp.compose(paletteFrame(image.Rect(1, 1, 2, 2), green), gif.DisposalNone)
+
+	if got := third.RGBAAt(0, 0); got.R != 255 || got.B != 0 {
+		t.Errorf("pixel (0,0) = %v, want red restored after previous disposal", got)
+	}
+	if got := third.RGBAAt(1, 1); got.G != 255 {
+		t.Errorf("pixel (1,1) = %v, want green", got)
+	}
+}
+
+func TestTargetGridHandlesZeroImageDims(t *testing.T) {
+	cols, rows := targetGrid(0, 0, Options{})
+	if cols < 1 || rows < 1 {
+		t.Errorf("grid = %dx%d, want at least 1x1", cols, rows)
+	}
+}
+
+func TestTargetGridRespectsMaxBounds(t *testing.T) {
+	cols, rows := targetGrid(400, 400, Options{MaxWidth: 100, MaxHeight: 20})
+	if cols > 100 || rows > 20 {
+		t.Errorf("grid = %dx%d, want within 100x20", cols, rows)
+	}
+	if cols != 40 {
+		t.Errorf("cols = %d, want 40 (square image aspect-fit to 20 rows)", cols)
 	}
 }
 

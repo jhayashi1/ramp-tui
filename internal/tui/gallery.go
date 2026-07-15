@@ -88,7 +88,9 @@ func (g galleryModel) update(msg tea.Msg) (galleryModel, tea.Cmd) {
 		case "q", "ctrl+c":
 			return g, tea.Quit
 		case "enter":
-			if index := g.list.Index(); index >= 0 && len(g.list.Items()) > 0 {
+			// GlobalIndex maps the selection back into the full item
+			// slice even when a filter is applied.
+			if index := g.list.GlobalIndex(); index >= 0 && index < len(g.list.Items()) {
 				entries := g.entries()
 				return g, func() tea.Msg { return playEntryMsg{entries: entries, index: index} }
 			}

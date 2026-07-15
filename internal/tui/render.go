@@ -28,6 +28,7 @@ type renderModel struct {
 	events  chan renderEventMsg
 	percent float64
 	width   int
+	height  int
 }
 
 func newRender(dir, gifPath string) renderModel {
@@ -39,8 +40,8 @@ func newRender(dir, gifPath string) renderModel {
 	}
 }
 
-func (r *renderModel) setSize(width, _ int) {
-	r.width = width
+func (r *renderModel) setSize(width, height int) {
+	r.width, r.height = width, height
 	r.bar.Width = max(10, min(60, width-8))
 }
 
@@ -59,7 +60,14 @@ func (r renderModel) runRender() tea.Cmd {
 		}
 		defer f.Close()
 
-		anim, err := engine.Render(f, engine.Options{Colored: true}, func(done, total int) {
+		// Size the render to the TUI's own viewport (minus the status
+		// line) so the player's fit check always agrees.
+		opts := engine.Options{
+			Colored:   true,
+			MaxWidth:  r.width,
+			MaxHeight: max(1, r.height-1),
+		}
+		anim, err := engine.Render(f, opts, func(done, total int) {
 			select {
 			case r.events <- renderEventMsg{done: done, total: total}:
 			default:
