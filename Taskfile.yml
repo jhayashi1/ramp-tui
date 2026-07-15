@@ -1,0 +1,34 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the binary into bin/
+    cmds:
+      - go build -o bin/ascii-tui{{exeExt}} .
+
+  run:
+    desc: Run the app (task run -- <args>)
+    cmds:
+      - go run . {{.CLI_ARGS}}
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+
+  fmt:
+    desc: Format code (gofumpt + gci via golangci-lint)
+    cmds:
+      - golangci-lint fmt
+
+  check:
+    desc: Format, lint, and test
+    cmds:
+      - task: fmt
+      - task: lint
+      - task: test
