@@ -62,6 +62,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.gallery.setSize(msg.Width, msg.Height)
 		m.render.setSize(msg.Width, msg.Height)
 		m.player.setSize(msg.Width, msg.Height)
+		if m.screen == screenPlayer {
+			return m, m.player.scheduleRefit()
+		}
 		return m, nil
 
 	case startRenderMsg:
@@ -124,7 +127,9 @@ func (m model) startPlayer(entries []library.Entry, index int) (tea.Model, tea.C
 	player.setSize(m.width, m.height)
 	m.player = player
 	m.screen = screenPlayer
-	return m, cmd
+	// The stored render may not match this window (e.g. it was rendered
+	// in a differently sized terminal), so schedule an initial refit.
+	return m, tea.Batch(cmd, m.player.scheduleRefit())
 }
 
 func indexOfPath(entries []library.Entry, path string) int {

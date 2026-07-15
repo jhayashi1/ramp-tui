@@ -25,12 +25,22 @@ func (e entryItem) Title() string       { return e.Name }
 func (e entryItem) Description() string { return e.Path }
 func (e entryItem) FilterValue() string { return e.Name }
 
+// inputMode says what the gallery's text input is collecting.
+type inputMode int
+
+const (
+	inputNone inputMode = iota
+	inputAddGIF
+	inputRename
+)
+
 type galleryModel struct {
-	dir    string
-	list   list.Model
-	input  textinput.Model
-	typing bool
-	status string
+	dir        string
+	list       list.Model
+	input      textinput.Model
+	mode       inputMode
+	renamePath string
+	status     string
 }
 
 func newGallery(dir string) (galleryModel, error) {
@@ -79,7 +89,7 @@ func (g *galleryModel) setSize(width, height int) {
 }
 
 func (g galleryModel) update(msg tea.Msg) (galleryModel, tea.Cmd) {
-	if g.typing {
+	if g.mode != inputNone {
 		return g.updateTyping(msg)
 	}
 
@@ -95,10 +105,20 @@ func (g galleryModel) update(msg tea.Msg) (galleryModel, tea.Cmd) {
 				return g, func() tea.Msg { return playEntryMsg{entries: entries, index: index} }
 			}
 		case "a":
-			g.typing = true
+			g.mode = inputAddGIF
 			g.status = ""
 			g.input.SetValue("")
 			return g, g.input.Focus()
+		case "r":
+			if item, ok := g.list.SelectedItem().(entryItem); ok {
+				g.mode = inputRename
+				g.renamePath = item.Path
+				g.status = ""
+				g.input.SetValue(item.Name)
+				g.input.CursorEnd()
+				return g, g.input.Focus()
+			}
+			return g, nil
 		case "d":
 			if item, ok := g.list.SelectedItem().(entryItem); ok {
 				if err := os.Remove(item.Path); err != nil {
@@ -120,15 +140,19 @@ func (g galleryModel) updateTyping(msg tea.Msg) (galleryModel, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok {
 		switch key.String() {
 		case "enter":
-			path := strings.TrimSpace(g.input.Value())
-			g.typing = false
+			value := strings.TrimSpace(g.input.Value())
+			mode := g.mode
+			g.mode = inputNone
 			g.input.Blur()
-			if path == "" {
+			if value == "" {
 				return g, nil
 			}
-			return g, func() tea.Msg { return startRenderMsg{gifPath: path} }
+			if mode == inputRename {
+				return g.commitRename(value)
+			}
+			return g, func() tea.Msg { return startRenderMsg{gifPath: value} }
 		case "esc":
-			g.typing = false
+			g.mode = inputNone
 			g.input.Blur()
 			return g, nil
 		}
@@ -139,18 +163,44 @@ func (g galleryModel) updateTyping(msg tea.Msg) (galleryModel, tea.Cmd) {
 	return g, cmd
 }
 
+// commitRename renames the selected entry and keeps it selected, since
+// entries are listed by name and the rename can reorder them.
+func (g galleryModel) commitRename(newName string) (galleryModel, tea.Cmd) {
+	newPath, err := library.Rename(g.renamePath, newName)
+	if err != nil {
+		g.status = fmt.Sprintf("rename failed: %v", err)
+		return g, nil
+	}
+	if err := g.reload(); err != nil {
+		g.status = err.Error()
+		return g, nil
+	}
+	for i, item := range g.list.Items() {
+		if item.(entryItem).Path == newPath {
+			g.list.Select(i)
+			break
+		}
+	}
+	return g, nil
+}
+
 func (g galleryModel) view() string {
 	var b strings.Builder
 	b.WriteString(g.list.View())
 	b.WriteByte('\n')
-	if g.typing {
+	switch g.mode {
+	case inputAddGIF:
 		b.WriteString(promptStyle.Render("render gif: "+g.input.View()) + "\n")
 		b.WriteString(helpStyle.Render("[enter] render  [esc] cancel"))
+		return b.String()
+	case inputRename:
+		b.WriteString(promptStyle.Render("rename to: "+g.input.View()) + "\n")
+		b.WriteString(helpStyle.Render("[enter] rename  [esc] cancel"))
 		return b.String()
 	}
 	if g.status != "" {
 		b.WriteString(statusStyle.Render(g.status) + "\n")
 	}
-	b.WriteString(helpStyle.Render("[enter] play  [a] add gif  [d] delete  [/] filter  [q] quit"))
+	b.WriteString(helpStyle.Render("[enter] play  [a] add gif  [r] rename  [d] delete  [/] filter  [q] quit"))
 	return b.String()
 }

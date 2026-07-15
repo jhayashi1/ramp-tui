@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const version = 1
+const version = 2
 
 var magic = [8]byte{'A', 'S', 'C', 'I', 'I', 'T', 'U', 'I'}
 
@@ -22,6 +22,15 @@ type Animation struct {
 	Height     int
 	Frames     []string
 	Delays     []time.Duration
+
+	// SourceGIF holds the original GIF bytes so the animation can be
+	// re-rendered at a different size; nil in version-1 files, which
+	// play back fine but cannot be resized.
+	SourceGIF []byte
+	// Render options used to produce Frames, so re-renders match.
+	Colored    bool
+	Complex    bool
+	CustomRamp string
 }
 
 // Encode writes the animation to w in the frames file format.
@@ -48,7 +57,7 @@ func Decode(r io.Reader) (*Animation, error) {
 	if [8]byte(header[:8]) != magic {
 		return nil, errors.New("not an ascii-tui frames file")
 	}
-	if header[8] != version {
+	if header[8] < 1 || header[8] > version {
 		return nil, fmt.Errorf("unsupported frames file version %d", header[8])
 	}
 	zr, err := gzip.NewReader(r)

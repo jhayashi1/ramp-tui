@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -66,13 +67,12 @@ func renderGif(gifPath string, opts engine.Options, progressOut io.Writer) (*fra
 		}
 	}
 
-	f, err := os.Open(gifPath)
+	data, err := os.ReadFile(gifPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening gif: %w", err)
 	}
-	defer f.Close()
 
-	anim, err := engine.Render(f, opts, func(done, total int) {
+	anim, err := engine.Render(bytes.NewReader(data), opts, func(done, total int) {
 		fmt.Fprintf(progressOut, "\rrendering frame %d/%d", done, total)
 	})
 	fmt.Fprintln(progressOut)
@@ -80,5 +80,6 @@ func renderGif(gifPath string, opts engine.Options, progressOut io.Writer) (*fra
 		return nil, err
 	}
 	anim.SourceName = filepath.Base(gifPath)
+	anim.SourceGIF = data
 	return anim, nil
 }

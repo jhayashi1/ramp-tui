@@ -16,7 +16,11 @@ func TestRoundtrip(t *testing.T) {
 			"\x1b[38;2;255;0;0m@#.\x1b[0m\nabc",
 			"héllo\n→ ünïcode",
 		},
-		Delays: []time.Duration{100 * time.Millisecond, 40 * time.Millisecond},
+		Delays:     []time.Duration{100 * time.Millisecond, 40 * time.Millisecond},
+		SourceGIF:  []byte{'G', 'I', 'F', '8', '9', 'a', 0x01},
+		Colored:    true,
+		Complex:    true,
+		CustomRamp: " .@",
 	}
 
 	var buf bytes.Buffer
@@ -44,6 +48,48 @@ func TestRoundtrip(t *testing.T) {
 		if decoded.Delays[i] != original.Delays[i] {
 			t.Errorf("delay %d = %v, want %v", i, decoded.Delays[i], original.Delays[i])
 		}
+	}
+	if !bytes.Equal(decoded.SourceGIF, original.SourceGIF) {
+		t.Errorf("SourceGIF = %v, want %v", decoded.SourceGIF, original.SourceGIF)
+	}
+	if decoded.Colored != original.Colored || decoded.Complex != original.Complex ||
+		decoded.CustomRamp != original.CustomRamp {
+		t.Errorf("options = (%v, %v, %q), want (%v, %v, %q)",
+			decoded.Colored, decoded.Complex, decoded.CustomRamp,
+			original.Colored, original.Complex, original.CustomRamp)
+	}
+}
+
+// TestDecodeAcceptsVersion1 reconstructs a genuine v1 file: gob omits
+// zero-valued fields, so encoding an animation without any v2 fields
+// and patching the header version byte yields the v1 byte stream.
+func TestDecodeAcceptsVersion1(t *testing.T) {
+	anim := &Animation{
+		SourceName: "old.gif",
+		Width:      1,
+		Height:     1,
+		Frames:     []string{"x"},
+		Delays:     []time.Duration{time.Millisecond},
+	}
+	var buf bytes.Buffer
+	if err := Encode(&buf, anim); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	data := buf.Bytes()
+	if data[8] != version {
+		t.Fatalf("header version = %d, want %d", data[8], version)
+	}
+	data[8] = 1
+
+	decoded, err := Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("Decode v1: %v", err)
+	}
+	if decoded.SourceName != "old.gif" || len(decoded.Frames) != 1 {
+		t.Errorf("decoded v1 = %+v, want original content", decoded)
+	}
+	if decoded.SourceGIF != nil {
+		t.Errorf("SourceGIF = %v, want nil for v1 files", decoded.SourceGIF)
 	}
 }
 

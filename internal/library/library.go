@@ -74,6 +74,29 @@ func Save(dir string, anim *frames.Animation) (string, error) {
 	return path, nil
 }
 
+// Rename moves the entry at oldPath to newName (sanitized) within the
+// same directory. It refuses to overwrite an existing entry and
+// returns the new path.
+func Rename(oldPath, newName string) (string, error) {
+	name := sanitizeChars(strings.TrimSpace(newName))
+	if strings.Trim(name, "-") == "" {
+		return "", errors.New("name is empty")
+	}
+	newPath := filepath.Join(filepath.Dir(oldPath), name+fileExt)
+	if newPath == oldPath {
+		return oldPath, nil
+	}
+	if _, err := os.Stat(newPath); err == nil {
+		return "", fmt.Errorf("an entry named %q already exists", name)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("checking library entry: %w", err)
+	}
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return "", fmt.Errorf("renaming entry: %w", err)
+	}
+	return newPath, nil
+}
+
 // Write encodes the animation to an arbitrary file path.
 func Write(path string, anim *frames.Animation) error {
 	f, err := os.Create(path)
@@ -100,8 +123,15 @@ func Load(path string) (*frames.Animation, error) {
 	return frames.Decode(f)
 }
 
+// sanitize derives a library name from a source filename, dropping its
+// extension before mapping out unsafe characters.
 func sanitize(name string) string {
-	name = strings.TrimSuffix(name, filepath.Ext(name))
+	return sanitizeChars(strings.TrimSuffix(name, filepath.Ext(name)))
+}
+
+// sanitizeChars maps characters unsafe in filenames to '-', keeping
+// the rest of the name (including any dots-turned-dashes) intact.
+func sanitizeChars(name string) string {
 	return strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':

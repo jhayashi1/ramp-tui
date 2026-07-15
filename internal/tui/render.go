@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,12 +54,11 @@ func (r renderModel) start() tea.Cmd {
 
 func (r renderModel) runRender() tea.Cmd {
 	return func() tea.Msg {
-		f, err := os.Open(r.gifPath)
+		data, err := os.ReadFile(r.gifPath)
 		if err != nil {
 			r.events <- renderEventMsg{finished: true, err: err}
 			return nil
 		}
-		defer f.Close()
 
 		// Size the render to the TUI's own viewport (minus the status
 		// line) so the player's fit check always agrees.
@@ -67,7 +67,7 @@ func (r renderModel) runRender() tea.Cmd {
 			MaxWidth:  r.width,
 			MaxHeight: max(1, r.height-1),
 		}
-		anim, err := engine.Render(f, opts, func(done, total int) {
+		anim, err := engine.Render(bytes.NewReader(data), opts, func(done, total int) {
 			select {
 			case r.events <- renderEventMsg{done: done, total: total}:
 			default:
@@ -78,6 +78,7 @@ func (r renderModel) runRender() tea.Cmd {
 			return nil
 		}
 		anim.SourceName = filepath.Base(r.gifPath)
+		anim.SourceGIF = data
 
 		path, err := library.Save(r.dir, anim)
 		r.events <- renderEventMsg{finished: true, savedPath: path, err: err}
