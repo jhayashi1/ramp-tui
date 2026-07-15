@@ -12,6 +12,7 @@ import (
 	"github.com/jhayashi1/ascii-tui/internal/engine"
 	"github.com/jhayashi1/ascii-tui/internal/frames"
 	"github.com/jhayashi1/ascii-tui/internal/library"
+	"github.com/jhayashi1/ascii-tui/internal/pathutil"
 )
 
 func init() {
@@ -25,12 +26,12 @@ func init() {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.Colored = !noColor
-			anim, err := renderGif(args[0], opts, cmd.ErrOrStderr())
+			anim, err := renderGif(pathutil.ExpandTilde(args[0]), opts, cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
 
-			path := output
+			path := pathutil.ExpandTilde(output)
 			if path == "" {
 				dir, err := library.DefaultDir()
 				if err != nil {

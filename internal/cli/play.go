@@ -10,6 +10,7 @@ import (
 	"github.com/jhayashi1/ascii-tui/internal/engine"
 	"github.com/jhayashi1/ascii-tui/internal/frames"
 	"github.com/jhayashi1/ascii-tui/internal/library"
+	"github.com/jhayashi1/ascii-tui/internal/pathutil"
 	"github.com/jhayashi1/ascii-tui/internal/player"
 )
 
@@ -22,7 +23,7 @@ func init() {
 		Short: "Play a frames file, or render a GIF on the fly and play it",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			anim, err := loadAnimation(args[0], cmd.ErrOrStderr())
+			anim, err := loadAnimation(pathutil.ExpandTilde(args[0]), cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
