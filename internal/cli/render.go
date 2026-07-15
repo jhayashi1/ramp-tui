@@ -56,6 +56,7 @@ func init() {
 	renderCmd.Flags().IntVarP(&opts.Height, "height", "H", 0, "output height in characters")
 	renderCmd.Flags().BoolVar(&noColor, "no-color", false, "render without ANSI colors")
 	renderCmd.Flags().BoolVar(&opts.Complex, "complex", false, "use a denser character ramp")
+	renderCmd.Flags().BoolVar(&opts.FilterBackground, "filter-bg", false, "render a detected solid background as blank space")
 	renderCmd.Flags().StringVar(&opts.CustomRamp, "ramp", "", "custom character ramp, dark to bright")
 	rootCmd.AddCommand(renderCmd)
 }

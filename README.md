@@ -25,6 +25,9 @@ ascii-tui path/to/animation.gif
 ascii-tui render animation.gif
 ascii-tui render animation.gif -o animation.frames -W 120
 
+# Drop a solid background so it plays as blank terminal space
+ascii-tui render animation.gif --filter-bg
+
 # Play a frames file (or a gif, rendered on the fly)
 ascii-tui play animation.frames
 ascii-tui play animation.frames --once --speed 2

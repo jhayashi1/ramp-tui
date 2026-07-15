@@ -4,6 +4,7 @@ package engine
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/gif"
 	"io"
@@ -33,11 +34,14 @@ type Options struct {
 	// MaxWidth and MaxHeight bound the auto-fitted grid when Width and
 	// Height are both zero. Callers resolve these from their display;
 	// the engine never inspects the terminal itself.
-	MaxWidth   int
-	MaxHeight  int
-	Colored    bool
-	Complex    bool
-	CustomRamp string
+	MaxWidth  int
+	MaxHeight int
+	Colored   bool
+	Complex   bool
+	// FilterBackground detects a solid background color from the first
+	// frame's border and renders matching pixels as blank space.
+	FilterBackground bool
+	CustomRamp       string
 }
 
 // Render decodes a GIF from r and converts every frame to ASCII text.
@@ -59,8 +63,24 @@ func Render(r io.Reader, opts Options, onProgress func(done, total int)) (*frame
 	total := len(g.Image)
 	rendered := make([]string, total)
 	delays := make([]time.Duration, total)
+	var (
+		bg      color.RGBA
+		bgFound bool
+		masked  *image.RGBA
+	)
 	for i, src := range g.Image {
 		frame := comp.compose(src, disposalAt(g, i))
+		if opts.FilterBackground {
+			if i == 0 {
+				if bg, bgFound = detectBackground(frame); bgFound {
+					masked = image.NewRGBA(bounds)
+				}
+			}
+			if bgFound {
+				maskBackground(masked, frame, bg)
+				frame = masked
+			}
+		}
 		rendered[i] = frameToASCII(frame, cols, rows, opts.Colored, ramp)
 		delays[i] = delayAt(g, i)
 		if onProgress != nil {
