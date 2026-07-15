@@ -126,6 +126,9 @@ func TestRenderFilterBackgroundBlanksSolidBackground(t *testing.T) {
 	if got := strings.TrimSpace(lines[len(lines)/2]); got == "" {
 		t.Error("center row is blank, want subject preserved")
 	}
+	if !anim.FilterBackground {
+		t.Error("anim.FilterBackground = false, want option recorded for re-renders")
+	}
 }
 
 func TestRenderWithoutFilterKeepsSolidBackground(t *testing.T) {

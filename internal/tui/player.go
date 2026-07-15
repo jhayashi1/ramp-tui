@@ -115,17 +115,46 @@ func (p *playerModel) scheduleRefit() tea.Cmd {
 func (p playerModel) refitCmd() tea.Cmd {
 	gen := p.refitGen
 	anim := p.anim
-	vw, vh := p.viewport()
-	opts := engine.Options{
-		Colored:    anim.Colored,
-		Complex:    anim.Complex,
-		CustomRamp: anim.CustomRamp,
-		MaxWidth:   vw,
-		MaxHeight:  max(1, vh),
-	}
+	opts := p.renderOptions()
 	return func() tea.Msg {
 		re, err := engine.Render(bytes.NewReader(anim.SourceGIF), opts, nil)
 		return refitDoneMsg{gen: gen, anim: re, err: err}
+	}
+}
+
+// toggleFilterCmd re-renders with background filtering flipped and saves
+// the result back to the library so the choice survives restarts.
+func (p playerModel) toggleFilterCmd() tea.Cmd {
+	gen := p.refitGen
+	anim := p.anim
+	path := p.entries[p.index].Path
+	opts := p.renderOptions()
+	opts.FilterBackground = !anim.FilterBackground
+	return func() tea.Msg {
+		re, err := engine.Render(bytes.NewReader(anim.SourceGIF), opts, nil)
+		if err != nil {
+			return refitDoneMsg{gen: gen, err: err}
+		}
+		re.SourceGIF = anim.SourceGIF
+		re.SourceName = anim.SourceName
+		if err := library.Write(path, re); err != nil {
+			return refitDoneMsg{gen: gen, err: err}
+		}
+		return refitDoneMsg{gen: gen, anim: re}
+	}
+}
+
+// renderOptions rebuilds the engine options the animation was rendered
+// with, bounded by the current viewport.
+func (p playerModel) renderOptions() engine.Options {
+	vw, vh := p.viewport()
+	return engine.Options{
+		Colored:          p.anim.Colored,
+		Complex:          p.anim.Complex,
+		FilterBackground: p.anim.FilterBackground,
+		CustomRamp:       p.anim.CustomRamp,
+		MaxWidth:         vw,
+		MaxHeight:        max(1, vh),
 	}
 }
 
@@ -188,6 +217,13 @@ func (p playerModel) update(msg tea.Msg) (playerModel, tea.Cmd) {
 			return p.switchTo(p.index - 1)
 		case "right", "l":
 			return p.switchTo(p.index + 1)
+		case "f":
+			if p.anim == nil || p.anim.SourceGIF == nil {
+				return p, nil
+			}
+			p.refitGen++
+			p.refitting = true
+			return p, p.toggleFilterCmd()
 		}
 	}
 	return p, nil
@@ -235,7 +271,7 @@ func (p playerModel) view() string {
 	if p.refitting {
 		state += "  fitting..."
 	}
-	status := fmt.Sprintf("%s  %d/%d%s  [space] pause  [<-/->] switch  [esc] back  [q] quit",
+	status := fmt.Sprintf("%s  %d/%d%s  [space] pause  [<-/->] switch  [f] filter bg  [esc] back  [q] quit",
 		name, p.frame+1, len(p.anim.Frames), state)
 
 	var b strings.Builder

@@ -35,7 +35,8 @@ ascii-tui play animation.frames --once --speed 2
 
 In the gallery: `enter` plays the selected animation, `a` renders a new gif,
 `d` deletes an entry, `/` filters. In the player: `space` pauses, `left`/`right`
-switch between animations, `esc` returns to the gallery.
+switch between animations, `f` toggles background filtering (re-rendered and
+saved, so the choice sticks), `esc` returns to the gallery.
 
 The `a` prompt has fzf-style fuzzy search: it recursively finds `.gif` files
 under the directory portion of the typed path (a few levels deep) and filters

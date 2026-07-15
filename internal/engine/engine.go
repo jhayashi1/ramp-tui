@@ -93,9 +93,10 @@ func Render(r io.Reader, opts Options, onProgress func(done, total int)) (*frame
 		Height:     rows,
 		Frames:     rendered,
 		Delays:     delays,
-		Colored:    opts.Colored,
-		Complex:    opts.Complex,
-		CustomRamp: opts.CustomRamp,
+		Colored:          opts.Colored,
+		Complex:          opts.Complex,
+		FilterBackground: opts.FilterBackground,
+		CustomRamp:       opts.CustomRamp,
 	}, nil
 }
 

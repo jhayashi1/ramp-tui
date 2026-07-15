@@ -28,9 +28,10 @@ type Animation struct {
 	// play back fine but cannot be resized.
 	SourceGIF []byte
 	// Render options used to produce Frames, so re-renders match.
-	Colored    bool
-	Complex    bool
-	CustomRamp string
+	Colored          bool
+	Complex          bool
+	FilterBackground bool
+	CustomRamp       string
 }
 
 // Encode writes the animation to w in the frames file format.

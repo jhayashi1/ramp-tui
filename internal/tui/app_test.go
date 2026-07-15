@@ -341,6 +341,104 @@ func TestPlayerTooSmallResizableShowsFitting(t *testing.T) {
 	}
 }
 
+// solidBGGIF encodes a single-frame GIF with a white background and a
+// red square in the center.
+func solidBGGIF(t *testing.T) []byte {
+	t.Helper()
+	pal := color.Palette{
+		color.RGBA{255, 255, 255, 255},
+		color.RGBA{200, 0, 0, 255},
+	}
+	img := image.NewPaletted(image.Rect(0, 0, 40, 40), pal)
+	for y := 14; y < 26; y++ {
+		for x := 14; x < 26; x++ {
+			img.SetColorIndex(x, y, 1)
+		}
+	}
+	var buf bytes.Buffer
+	err := gif.EncodeAll(&buf, &gif.GIF{Image: []*image.Paletted{img}, Delay: []int{10}})
+	if err != nil {
+		t.Fatalf("encoding gif: %v", err)
+	}
+	return buf.Bytes()
+}
+
+func TestPlayerToggleFilterBackground(t *testing.T) {
+	dir := t.TempDir()
+	data := solidBGGIF(t)
+	anim, err := engine.Render(bytes.NewReader(data),
+		engine.Options{MaxWidth: 20, MaxHeight: 10}, nil)
+	if err != nil {
+		t.Fatalf("rendering fixture gif: %v", err)
+	}
+	anim.SourceName = "solid.gif"
+	anim.SourceGIF = data
+	path, err := library.Save(dir, anim)
+	if err != nil {
+		t.Fatalf("saving fixture: %v", err)
+	}
+
+	gallery, err := newGallery(dir)
+	if err != nil {
+		t.Fatalf("newGallery: %v", err)
+	}
+	m := model{gallery: gallery}
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = updated.(model)
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	topRow := func() string {
+		return strings.TrimSpace(strings.Split(m.player.anim.Frames[0], "\n")[0])
+	}
+	if m.player.anim.FilterBackground {
+		t.Fatal("filter enabled before toggle")
+	}
+	if topRow() == "" {
+		t.Fatal("background already blank before toggle")
+	}
+
+	m = step(t, m, keyRune('f'))
+	if !m.player.anim.FilterBackground {
+		t.Fatal("filter not enabled after f")
+	}
+	if topRow() != "" {
+		t.Errorf("top row = %q after enabling filter, want blank", topRow())
+	}
+	saved, err := library.Load(path)
+	if err != nil {
+		t.Fatalf("loading saved entry: %v", err)
+	}
+	if !saved.FilterBackground {
+		t.Error("enabled filter not persisted to the frames file")
+	}
+
+	m = step(t, m, keyRune('f'))
+	if m.player.anim.FilterBackground {
+		t.Fatal("filter still enabled after second f")
+	}
+	if topRow() == "" {
+		t.Error("top row blank after disabling filter, want background restored")
+	}
+	saved, err = library.Load(path)
+	if err != nil {
+		t.Fatalf("loading saved entry: %v", err)
+	}
+	if saved.FilterBackground {
+		t.Error("disabled filter not persisted to the frames file")
+	}
+}
+
+func TestPlayerFilterToggleIgnoredForLegacyEntries(t *testing.T) {
+	m := step(t, fixtureModel(t), tea.KeyMsg{Type: tea.KeyEnter})
+	m = step(t, m, keyRune('f'))
+	if m.player.refitting {
+		t.Error("legacy entry without SourceGIF started a re-render")
+	}
+	if m.player.anim.FilterBackground {
+		t.Error("legacy entry toggled FilterBackground")
+	}
+}
+
 func TestPlayerCentersFrame(t *testing.T) {
 	m := step(t, fixtureModel(t), tea.KeyMsg{Type: tea.KeyEnter})
 	lines := strings.Split(m.View(), "\n")

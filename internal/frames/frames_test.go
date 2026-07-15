@@ -16,11 +16,12 @@ func TestRoundtrip(t *testing.T) {
 			"\x1b[38;2;255;0;0m@#.\x1b[0m\nabc",
 			"héllo\n→ ünïcode",
 		},
-		Delays:     []time.Duration{100 * time.Millisecond, 40 * time.Millisecond},
-		SourceGIF:  []byte{'G', 'I', 'F', '8', '9', 'a', 0x01},
-		Colored:    true,
-		Complex:    true,
-		CustomRamp: " .@",
+		Delays:           []time.Duration{100 * time.Millisecond, 40 * time.Millisecond},
+		SourceGIF:        []byte{'G', 'I', 'F', '8', '9', 'a', 0x01},
+		Colored:          true,
+		Complex:          true,
+		FilterBackground: true,
+		CustomRamp:       " .@",
 	}
 
 	var buf bytes.Buffer
@@ -53,10 +54,11 @@ func TestRoundtrip(t *testing.T) {
 		t.Errorf("SourceGIF = %v, want %v", decoded.SourceGIF, original.SourceGIF)
 	}
 	if decoded.Colored != original.Colored || decoded.Complex != original.Complex ||
+		decoded.FilterBackground != original.FilterBackground ||
 		decoded.CustomRamp != original.CustomRamp {
-		t.Errorf("options = (%v, %v, %q), want (%v, %v, %q)",
-			decoded.Colored, decoded.Complex, decoded.CustomRamp,
-			original.Colored, original.Complex, original.CustomRamp)
+		t.Errorf("options = (%v, %v, %v, %q), want (%v, %v, %v, %q)",
+			decoded.Colored, decoded.Complex, decoded.FilterBackground, decoded.CustomRamp,
+			original.Colored, original.Complex, original.FilterBackground, original.CustomRamp)
 	}
 }
 
