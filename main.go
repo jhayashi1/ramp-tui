@@ -2,8 +2,8 @@
 // and plays them in the terminal.
 package main
 
-import "fmt"
+import "github.com/jhayashi1/ascii-tui/internal/cli"
 
 func main() {
-	fmt.Println("ascii-tui")
+	cli.Execute()
 }
