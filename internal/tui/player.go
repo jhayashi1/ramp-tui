@@ -69,11 +69,14 @@ type playerModel struct {
 	refitting bool
 }
 
-func newPlayer(entries []library.Entry, index int, st styles) (playerModel, tea.Cmd) {
+func newPlayer(entries []library.Entry, index int, st styles, speed float64) (playerModel, tea.Cmd) {
+	if speed <= 0 {
+		speed = 1
+	}
 	p := playerModel{
 		entries: entries,
 		index:   index,
-		speed:   1,
+		speed:   clampSpeed(speed),
 		st:      st,
 		keys:    newPlayerKeyMap(),
 		bar:     progress.New(progress.WithSolidFill(st.theme.Accent)),

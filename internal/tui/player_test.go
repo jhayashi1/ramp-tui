@@ -30,7 +30,7 @@ func newTestPlayer(t *testing.T, delays []time.Duration) playerModel {
 	if err != nil {
 		t.Fatalf("saving fixture: %v", err)
 	}
-	p, _ := newPlayer([]library.Entry{{Name: "test", Path: path}}, 0, defaultStyles())
+	p, _ := newPlayer([]library.Entry{{Name: "test", Path: path}}, 0, defaultStyles(), 1)
 	return p
 }
 

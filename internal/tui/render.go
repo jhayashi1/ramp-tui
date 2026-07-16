@@ -23,23 +23,27 @@ type renderEventMsg struct {
 }
 
 type renderModel struct {
-	dir     string
-	gifPath string
-	bar     progress.Model
-	events  chan renderEventMsg
-	percent float64
-	st      styles
-	width   int
-	height  int
+	dir              string
+	gifPath          string
+	bar              progress.Model
+	events           chan renderEventMsg
+	percent          float64
+	st               styles
+	filterBackground bool
+	complex          bool
+	width            int
+	height           int
 }
 
-func newRender(dir, gifPath string, st styles) renderModel {
+func newRender(dir, gifPath string, st styles, filterBackground, useComplex bool) renderModel {
 	return renderModel{
-		dir:     dir,
-		gifPath: gifPath,
-		bar:     progress.New(progress.WithSolidFill(st.theme.Accent)),
-		events:  make(chan renderEventMsg, 16),
-		st:      st,
+		dir:              dir,
+		gifPath:          gifPath,
+		bar:              progress.New(progress.WithSolidFill(st.theme.Accent)),
+		events:           make(chan renderEventMsg, 16),
+		st:               st,
+		filterBackground: filterBackground,
+		complex:          useComplex,
 	}
 }
 
@@ -65,9 +69,11 @@ func (r renderModel) runRender() tea.Cmd {
 		// Size the render to the TUI's own viewport (minus the progress
 		// bar and status rows) so the player's fit check always agrees.
 		opts := engine.Options{
-			Colored:   true,
-			MaxWidth:  r.width,
-			MaxHeight: max(1, r.height-2),
+			Colored:          true,
+			FilterBackground: r.filterBackground,
+			Complex:          r.complex,
+			MaxWidth:         r.width,
+			MaxHeight:        max(1, r.height-2),
 		}
 		anim, err := engine.Render(bytes.NewReader(data), opts, func(done, total int) {
 			select {

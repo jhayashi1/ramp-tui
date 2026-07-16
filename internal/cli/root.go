@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/jhayashi1/ascii-tui/internal/config"
 	"github.com/jhayashi1/ascii-tui/internal/engine"
 	"github.com/jhayashi1/ascii-tui/internal/library"
 	"github.com/jhayashi1/ascii-tui/internal/pathutil"
@@ -25,10 +26,11 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		cfg := config.Load()
 		if len(args) == 0 {
-			return tui.Run(dir)
+			return tui.Run(dir, cfg)
 		}
-		return renderAndPlay(cmd, dir, pathutil.ExpandTilde(args[0]))
+		return renderAndPlay(cmd, dir, pathutil.ExpandTilde(args[0]), cfg)
 	},
 }
 
@@ -41,11 +43,16 @@ func Execute() {
 
 // renderAndPlay is the shortcut path: render a gif into the library,
 // then loop it in the raw player.
-func renderAndPlay(cmd *cobra.Command, dir, path string) error {
+func renderAndPlay(cmd *cobra.Command, dir, path string, cfg config.Config) error {
 	if !isGif(path) {
 		return fmt.Errorf("expected a .gif file, got %s", path)
 	}
-	anim, err := renderGif(path, engine.Options{Colored: true}, cmd.ErrOrStderr())
+	opts := engine.Options{
+		Colored:          true,
+		FilterBackground: cfg.Render.FilterBackground,
+		Complex:          cfg.Render.Complex,
+	}
+	anim, err := renderGif(path, opts, cmd.ErrOrStderr())
 	if err != nil {
 		return err
 	}
@@ -55,5 +62,5 @@ func renderAndPlay(cmd *cobra.Command, dir, path string) error {
 	}
 	fmt.Fprintf(cmd.ErrOrStderr(), "saved to library: %s\n", saved)
 
-	return player.Run(anim, player.Options{Loop: true, Speed: 1})
+	return player.Run(anim, player.Options{Loop: true, Speed: cfg.Playback.Speed})
 }

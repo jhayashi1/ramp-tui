@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jhayashi1/ascii-tui/internal/config"
 	"github.com/jhayashi1/ascii-tui/internal/library"
 )
 
@@ -38,19 +39,27 @@ type model struct {
 	render      renderModel
 	player      playerModel
 	st          styles
+	cfg         config.Config
 	helpVisible bool
 	width       int
 	height      int
 }
 
-// Run starts the interactive TUI over the given library directory.
-func Run(libraryDir string) error {
-	st := defaultStyles()
+// Run starts the interactive TUI over the given library directory,
+// using cfg for the theme and playback/render defaults.
+func Run(libraryDir string, cfg config.Config) error {
+	st := newStyles(theme{
+		Accent: cfg.Theme.Accent,
+		Border: cfg.Theme.Border,
+		Text:   cfg.Theme.Text,
+		Dim:    cfg.Theme.Dim,
+		Error:  cfg.Theme.Error,
+	})
 	gallery, err := newGallery(libraryDir, st)
 	if err != nil {
 		return err
 	}
-	m := model{gallery: gallery, st: st}
+	m := model{gallery: gallery, st: st, cfg: cfg}
 	_, err = tea.NewProgram(m, tea.WithAltScreen()).Run()
 	return err
 }
@@ -87,7 +96,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case startRenderMsg:
 		m.screen = screenRendering
-		m.render = newRender(m.gallery.dir, msg.gifPath, m.st)
+		m.render = newRender(m.gallery.dir, msg.gifPath, m.st, m.cfg.Render.FilterBackground, m.cfg.Render.Complex)
 		m.render.setSize(m.width, m.height)
 		return m, m.render.start()
 
@@ -151,7 +160,7 @@ func (m model) helpKeyMap() help.KeyMap {
 }
 
 func (m model) startPlayer(entries []library.Entry, index int) (tea.Model, tea.Cmd) {
-	player, cmd := newPlayer(entries, index, m.st)
+	player, cmd := newPlayer(entries, index, m.st, m.cfg.Playback.Speed)
 	player.setSize(m.width, m.height)
 	m.player = player
 	m.screen = screenPlayer
