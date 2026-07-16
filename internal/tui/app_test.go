@@ -331,7 +331,7 @@ func TestPlayerRefitsOnResize(t *testing.T) {
 	if m.player.refitting {
 		t.Error("player still refitting after render completed")
 	}
-	vw, vh := 40, 11
+	vw, vh := 40, 10
 	w, h := m.player.anim.Width, m.player.anim.Height
 	if w > vw || h > vh {
 		t.Errorf("refitted to %dx%d, exceeds viewport %dx%d", w, h, vw, vh)

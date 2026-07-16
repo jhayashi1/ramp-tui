@@ -45,9 +45,7 @@ func (k galleryKeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-// playerKeyMap is the single source of truth for player bindings. Seek,
-// frame-step, and speed bindings are defined here now (so help text is
-// complete) even though their handlers land in a later milestone.
+// playerKeyMap is the single source of truth for player bindings.
 type playerKeyMap struct {
 	Pause       key.Binding
 	SeekBack    key.Binding
@@ -83,7 +81,7 @@ func newPlayerKeyMap() playerKeyMap {
 }
 
 func (k playerKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Pause, k.Next, k.Prev, k.Filter, k.Help, k.Back, k.Quit}
+	return []key.Binding{k.Pause, k.SeekBack, k.SeekForward, k.Next, k.Prev, k.Back, k.Quit}
 }
 
 func (k playerKeyMap) FullHelp() [][]key.Binding {

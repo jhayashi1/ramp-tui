@@ -62,12 +62,12 @@ func (r renderModel) runRender() tea.Cmd {
 			return nil
 		}
 
-		// Size the render to the TUI's own viewport (minus the status
-		// line) so the player's fit check always agrees.
+		// Size the render to the TUI's own viewport (minus the progress
+		// bar and status rows) so the player's fit check always agrees.
 		opts := engine.Options{
 			Colored:   true,
 			MaxWidth:  r.width,
-			MaxHeight: max(1, r.height-1),
+			MaxHeight: max(1, r.height-2),
 		}
 		anim, err := engine.Render(bytes.NewReader(data), opts, func(done, total int) {
 			select {
