@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
@@ -60,7 +59,6 @@ type playerModel struct {
 	st      styles
 	keys    playerKeyMap
 	bar     progress.Model
-	help    help.Model
 	width   int
 	height  int
 	// refitGen invalidates pending debounce timers and in-flight
@@ -80,7 +78,6 @@ func newPlayer(entries []library.Entry, index int, st styles, speed float64) (pl
 		st:      st,
 		keys:    newPlayerKeyMap(),
 		bar:     progress.New(progress.WithSolidFill(st.theme.Accent)),
-		help:    help.New(),
 	}
 	p.load()
 	return p, p.tickCmd()
@@ -186,7 +183,6 @@ func clampSpeed(s float64) float64 {
 func (p *playerModel) setSize(width, height int) {
 	p.width, p.height = width, height
 	p.bar.Width = max(1, width)
-	p.help.Width = width
 }
 
 // viewport returns the area available for the animation, reserving one
@@ -404,8 +400,9 @@ func (p playerModel) switchTo(index int) (playerModel, tea.Cmd) {
 
 func (p playerModel) view() string {
 	if p.err != nil {
-		return p.st.status.Render(fmt.Sprintf("error: %v", p.err)) + "\n" +
-			p.st.help.Render("[esc] back  [q] quit")
+		return lipgloss.Place(max(1, p.width), max(1, p.height-1), lipgloss.Center, lipgloss.Center,
+			p.st.status.Render(fmt.Sprintf("error: %v", p.err))) + "\n" +
+			renderStatusBar(p.st.chipAlert, "ERROR", "esc back · q quit", p.st.help, "", p.width, p.st)
 	}
 	if p.anim == nil {
 		return ""
@@ -415,15 +412,14 @@ func (p playerModel) view() string {
 		// The frame cannot be placed without breaking layout. Resizable
 		// entries are about to be refitted; legacy ones can only ask
 		// the user for more room.
-		if p.anim.SourceGIF != nil {
-			return lipgloss.Place(vw, max(0, vh), lipgloss.Center, lipgloss.Center,
-				fmt.Sprintf("fitting to %dx%d...", vw, vh)) + "\n" +
-				p.st.help.Render("[esc] back  [q] quit")
+		body := p.st.dim.Render(fmt.Sprintf("fitting to %dx%d...", vw, vh))
+		if p.anim.SourceGIF == nil {
+			body = p.st.warning.Render(fmt.Sprintf(
+				"animation is %dx%d but the terminal is %dx%d;\nenlarge the window or re-render with a smaller --width",
+				p.anim.Width, p.anim.Height, vw, vh))
 		}
-		return p.st.prompt.Render(fmt.Sprintf(
-			"animation is %dx%d but the terminal is %dx%d;\nenlarge the window or re-render with a smaller --width",
-			p.anim.Width, p.anim.Height, vw, vh)) + "\n" +
-			p.st.help.Render("[esc] back  [q] quit")
+		return lipgloss.Place(max(1, p.width), max(1, p.height-1), lipgloss.Center, lipgloss.Center, body) +
+			"\n" + p.statusBar()
 	}
 
 	var b strings.Builder
@@ -432,7 +428,7 @@ func (p playerModel) view() string {
 	b.WriteByte('\n')
 	b.WriteString(p.progressRow())
 	b.WriteByte('\n')
-	b.WriteString(p.statusLine())
+	b.WriteString(p.statusBar())
 	return b.String()
 }
 
@@ -445,30 +441,25 @@ func (p playerModel) progressRow() string {
 	return p.bar.ViewAs(frac)
 }
 
-// statusLine renders "name · frame/total · elapsed/total · speed ·
-// state" on the left and the key hints on the right, giving the left
-// side priority: the help view's own width-aware truncation is what
-// drops key hints first as the terminal narrows.
-func (p playerModel) statusLine() string {
-	left := fmt.Sprintf("%s  %d/%d  %s/%s",
+// statusBar renders the player footer: a PLAYING/PAUSED mode chip, the
+// key hints in the middle, and "name · frame/total · elapsed/total ·
+// speed" right-aligned. renderStatusBar truncates the hints first as
+// the terminal narrows, keeping the playback facts visible.
+func (p playerModel) statusBar() string {
+	chipLabel := "PLAYING"
+	if p.paused {
+		chipLabel = "PAUSED"
+	}
+	status := fmt.Sprintf("%s · %d/%d · %s/%s",
 		p.entries[p.index].Name, p.frame+1, len(p.anim.Frames),
 		formatDuration(p.elapsed[p.frame]), formatDuration(p.totalDuration()))
 	if p.speed != 1 {
-		left += "  " + formatSpeed(p.speed)
-	}
-	if p.paused {
-		left += "  paused"
+		status += " · " + formatSpeed(p.speed)
 	}
 	if p.refitting {
-		left += "  fitting..."
+		status += " · fitting..."
 	}
-
-	h := p.help
-	h.Width = max(0, p.width-lipgloss.Width(left)-2)
-	right := h.ShortHelpView(p.keys.ShortHelp())
-
-	gap := max(1, p.width-lipgloss.Width(left)-lipgloss.Width(right))
-	return p.st.help.Render(fitLine(left+strings.Repeat(" ", gap)+right, p.width))
+	return renderStatusBar(p.st.chip, chipLabel, shortHelpLine(p.keys.ShortHelp()), p.st.help, status, p.width, p.st)
 }
 
 func formatDuration(d time.Duration) string {

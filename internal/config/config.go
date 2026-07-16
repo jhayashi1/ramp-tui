@@ -31,13 +31,19 @@ type Render struct {
 }
 
 // Theme holds named colors; any value lipgloss.Color accepts (an ANSI
-// index, hex code, or name) is valid here.
+// index, hex code, or name) is valid here. Bg, SelectionBg, and
+// ChipText additionally feed raw background escapes, which support ANSI
+// indexes and hex codes.
 type Theme struct {
-	Accent string `toml:"accent"`
-	Border string `toml:"border"`
-	Text   string `toml:"text"`
-	Dim    string `toml:"dim"`
-	Error  string `toml:"error"`
+	Accent      string `toml:"accent"`
+	AccentAlt   string `toml:"accent_alt"`
+	Border      string `toml:"border"`
+	Text        string `toml:"text"`
+	Dim         string `toml:"dim"`
+	Error       string `toml:"error"`
+	Bg          string `toml:"bg"`
+	SelectionBg string `toml:"selection_bg"`
+	ChipText    string `toml:"chip_text"`
 }
 
 // Defaults returns the built-in configuration, used whenever no config
@@ -46,11 +52,15 @@ func Defaults() Config {
 	return Config{
 		Playback: Playback{Speed: 1},
 		Theme: Theme{
-			Accent: "212",
-			Border: "240",
-			Text:   "252",
-			Dim:    "241",
-			Error:  "203",
+			Accent:      "212",
+			AccentAlt:   "179",
+			Border:      "240",
+			Text:        "252",
+			Dim:         "243",
+			Error:       "203",
+			Bg:          "234",
+			SelectionBg: "237",
+			ChipText:    "234",
 		},
 	}
 }

@@ -13,22 +13,14 @@ import (
 // cross from one sub-model into app.go.
 type toggleHelpMsg struct{}
 
-const helpPanelWidth = 50
-
-// renderHelpOverlay replaces the whole screen with a centered panel
-// listing the current screen's full key bindings. There is no attempt
-// to composite over the screen underneath: the rest of the terminal is
-// simply left blank while the overlay is open, the same as the render
-// and player screens' own full-screen views.
+// renderHelpOverlay replaces the whole screen with a centered borderless
+// block listing the current screen's full key bindings. There is no
+// attempt to composite over the screen underneath: the rest of the
+// terminal is simply left blank while the overlay is open, the same as
+// the render and player screens' own full-screen views.
 func renderHelpOverlay(width, height int, keys help.KeyMap, st styles) string {
-	content := formatFullHelp(keys, st)
-	lines := strings.Split(content, "\n")
-
-	panelW := max(20, min(helpPanelWidth, width-4))
-	panelH := max(4, min(len(lines)+2, height-2))
-
-	panel := renderPanel("help", content, panelW, panelH, st)
-	return lipgloss.Place(max(1, width), max(1, height), lipgloss.Center, lipgloss.Center, panel)
+	content := st.columnTitle.Render("HELP") + "\n\n" + formatFullHelp(keys, st)
+	return lipgloss.Place(max(1, width), max(1, height), lipgloss.Center, lipgloss.Center, content)
 }
 
 // formatFullHelp renders a help.KeyMap's FullHelp groups as one

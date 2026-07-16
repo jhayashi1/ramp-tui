@@ -51,6 +51,11 @@ accent = "99"
 	if cfg.Theme.Error != def.Theme.Error {
 		t.Errorf("error = %q, want default %q (unset fields keep defaults)", cfg.Theme.Error, def.Theme.Error)
 	}
+	if cfg.Theme.Bg != def.Theme.Bg || cfg.Theme.SelectionBg != def.Theme.SelectionBg || cfg.Theme.ChipText != def.Theme.ChipText || cfg.Theme.AccentAlt != def.Theme.AccentAlt {
+		t.Errorf("new theme fields = %q/%q/%q/%q, want defaults %q/%q/%q/%q (old configs keep working)",
+			cfg.Theme.Bg, cfg.Theme.SelectionBg, cfg.Theme.ChipText, cfg.Theme.AccentAlt,
+			def.Theme.Bg, def.Theme.SelectionBg, def.Theme.ChipText, def.Theme.AccentAlt)
+	}
 }
 
 func TestLoadRejectsBadTOML(t *testing.T) {

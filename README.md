@@ -33,11 +33,14 @@ ascii-tui play animation.frames
 ascii-tui play animation.frames --once --speed 2
 ```
 
-The gallery shows a library panel next to a live preview of the selected
-entry (name, frame count, and dimensions); on narrow terminals (under 56
-columns or 12 rows) the preview drops and the library panel takes the full
-width. Press `?` on either screen for a full key reference; any key closes
-it.
+The gallery is a three-column layout: the library list on the left, a live
+preview of the selected entry in the middle (with a header showing its name,
+dimensions, frame count, and source), and a detail column on the right with
+the full metadata (length, render options, file size, modified time). On
+narrower terminals the detail column drops first, then the preview (under 56
+columns or 12 rows), leaving a full-width list. The status bar at the bottom
+shows the current mode, key hints, and the library summary. Press `?` on
+either screen for a full key reference; any key closes it.
 
 > [!NOTE]
 > If you're used to the old `left`/`right` switching between animations:
@@ -111,15 +114,21 @@ filter_background = false   # drop a detected solid background by default
 complex = false              # use a denser character ramp by default
 
 [theme]
-accent = "212"  # selection marker, borders' title, progress bar
-border = "240"  # panel borders
-text   = "252"  # normal text
-dim    = "241"  # help text, secondary labels
-error  = "203"  # error/warning text
+accent       = "212"  # selection, header glyph, progress bar
+accent_alt   = "179"  # section headers (ANIMATIONS, FILE)
+border       = "240"  # section rules
+text         = "252"  # normal text
+dim          = "243"  # column titles, help text, secondary labels
+error        = "203"  # error/warning text, delete chip
+bg           = "234"  # app background fill
+selection_bg = "237"  # selected-row bar
+chip_text    = "234"  # text inside the mode chip
 ```
 
 Theme values accept anything `lipgloss.Color` does: a 256-color index (as
-above), a hex code like `"#ff6ac1"`, or an ANSI name.
+above) or a hex code like `"#ff6ac1"`. The background colors (`bg`,
+`selection_bg`) support 256-color indexes and hex codes; set `bg = ""` to
+keep your terminal's own background instead of the fill.
 
 ## Development
 

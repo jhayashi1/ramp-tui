@@ -3,7 +3,7 @@ package tui
 import (
 	"bytes"
 	"fmt"
-	"strings"
+	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,10 +18,6 @@ import (
 // arrow key from triggering a decode+render per keystroke.
 const previewDebounce = 150 * time.Millisecond
 
-// previewMetaRows is the number of metadata lines drawn under the frame
-// (name, dimensions/frame count, source/filter state).
-const previewMetaRows = 3
-
 type previewTickMsg struct {
 	gen  int
 	path string
@@ -31,12 +27,60 @@ type previewDoneMsg struct {
 	gen     int
 	path    string
 	content string
+	meta    entryMeta
 	err     error
 }
 
 type previewEntry struct {
 	content string
+	meta    entryMeta
 	err     error
+}
+
+// entryMeta is everything the header line and detail column show about
+// the selected entry, gathered once per preview render so displaying it
+// costs no extra I/O.
+type entryMeta struct {
+	name     string
+	width    int
+	height   int
+	frames   int
+	length   time.Duration
+	source   string
+	filter   bool
+	colored  bool
+	complex  bool
+	ramp     string
+	path     string
+	fileSize int64
+	modTime  time.Time
+}
+
+// buildEntryMeta collects the animation's stored facts plus the on-disk
+// size and mtime of its .frames file.
+func buildEntryMeta(anim *frames.Animation, name, path string) entryMeta {
+	var length time.Duration
+	for _, d := range anim.Delays {
+		length += d
+	}
+	m := entryMeta{
+		name:    name,
+		width:   anim.Width,
+		height:  anim.Height,
+		frames:  len(anim.Frames),
+		length:  length,
+		source:  anim.SourceName,
+		filter:  anim.FilterBackground,
+		colored: anim.Colored,
+		complex: anim.Complex,
+		ramp:    anim.CustomRamp,
+		path:    path,
+	}
+	if info, err := os.Stat(path); err == nil {
+		m.fileSize = info.Size()
+		m.modTime = info.ModTime()
+	}
+	return m
 }
 
 // previewModel renders a cheap first-frame preview of the selected
@@ -56,11 +100,11 @@ func newPreviewModel(st styles) previewModel {
 	return previewModel{st: st, cache: make(map[string]previewEntry)}
 }
 
-// setSize sets the preview's content area (already excluding panel
-// borders) and reports whether the size actually changed. A size change
-// invalidates the cache, since cached previews are rendered to fit the
-// old dimensions; the caller is responsible for forcing a fresh render
-// of the current selection when that happens.
+// setSize sets the preview's content area and reports whether the size
+// actually changed. A size change invalidates the cache, since cached
+// previews are rendered to fit the old dimensions; the caller is
+// responsible for forcing a fresh render of the current selection when
+// that happens.
 func (p *previewModel) setSize(width, height int) bool {
 	changed := width != p.width || height != p.height
 	if changed {
@@ -114,7 +158,7 @@ func (p previewModel) update(msg tea.Msg) (previewModel, tea.Cmd) {
 		if msg.gen != p.gen {
 			return p, nil
 		}
-		p.cache[msg.path] = previewEntry{content: msg.content, err: msg.err}
+		p.cache[msg.path] = previewEntry{content: msg.content, meta: msg.meta, err: msg.err}
 	}
 	return p, nil
 }
@@ -129,9 +173,22 @@ func (p previewModel) renderCmd(gen int, path, name string) tea.Cmd {
 		if err != nil {
 			return previewDoneMsg{gen: gen, path: path, err: err}
 		}
-		content := renderPreviewContent(anim, name, width, height, st)
-		return previewDoneMsg{gen: gen, path: path, content: content}
+		content := renderPreviewContent(anim, width, height, st)
+		return previewDoneMsg{gen: gen, path: path, content: content, meta: buildEntryMeta(anim, name, path)}
 	}
+}
+
+// currentMeta returns the loaded metadata for the current selection,
+// reporting false while nothing is selected or the render is pending.
+func (p previewModel) currentMeta() (entryMeta, bool) {
+	if p.path == "" {
+		return entryMeta{}, false
+	}
+	entry, ok := p.cache[p.path]
+	if !ok || entry.err != nil {
+		return entryMeta{}, false
+	}
+	return entry.meta, true
 }
 
 func (p previewModel) view() string {
@@ -148,18 +205,13 @@ func (p previewModel) view() string {
 	return entry.content
 }
 
-// renderPreviewContent builds the preview panel's interior: the first
-// frame centered above metadata, padded/clipped to exactly width x
-// height lines by the caller's renderPanel.
-func renderPreviewContent(anim *frames.Animation, name string, width, height int, st styles) string {
-	meta := strings.Join([]string{
-		st.selected.Render(name),
-		st.dim.Render(fmt.Sprintf("%dx%d - %d frames", anim.Width, anim.Height, len(anim.Frames))),
-		st.dim.Render(fmt.Sprintf("source: %s  filter: %s", anim.SourceName, onOff(anim.FilterBackground))),
-	}, "\n")
-
+// renderPreviewContent builds the preview column's frame area: the
+// first frame centered in exactly width x height cells; the metadata
+// that used to sit under the frame now lives in the header line and the
+// detail column.
+func renderPreviewContent(anim *frames.Animation, width, height int, st styles) string {
 	frameW := max(1, width)
-	frameH := max(1, height-previewMetaRows-1)
+	frameH := max(1, height)
 
 	var frame string
 	switch {
@@ -181,8 +233,7 @@ func renderPreviewContent(anim *frames.Animation, name string, width, height int
 		frame = st.dim.Render("no preview available")
 	}
 
-	placed := lipgloss.Place(frameW, frameH, lipgloss.Center, lipgloss.Center, frame)
-	return placed + "\n\n" + meta
+	return lipgloss.Place(frameW, frameH, lipgloss.Center, lipgloss.Center, frame)
 }
 
 func onOff(b bool) string {

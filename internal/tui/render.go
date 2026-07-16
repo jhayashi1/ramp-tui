@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jhayashi1/ascii-tui/internal/engine"
 	"github.com/jhayashi1/ascii-tui/internal/library"
@@ -115,10 +115,8 @@ func (r renderModel) update(msg tea.Msg) (renderModel, tea.Cmd) {
 }
 
 func (r renderModel) view() string {
-	var b strings.Builder
-	b.WriteString("\n")
-	b.WriteString(r.st.prompt.Render(fmt.Sprintf("rendering %s", filepath.Base(r.gifPath))))
-	b.WriteString("\n\n")
-	b.WriteString(r.st.prompt.Render(r.bar.ViewAs(r.percent)))
-	return renderPanel("render", b.String(), r.width, r.height, r.st)
+	body := r.st.text.Render(fmt.Sprintf("rendering %s", filepath.Base(r.gifPath))) +
+		"\n\n" + r.bar.ViewAs(r.percent)
+	return lipgloss.Place(max(1, r.width), max(1, r.height-1), lipgloss.Center, lipgloss.Center, body) +
+		"\n" + renderStatusBar(r.st.chip, "RENDER", "", r.st.help, "", r.width, r.st)
 }

@@ -49,11 +49,15 @@ type model struct {
 // using cfg for the theme and playback/render defaults.
 func Run(libraryDir string, cfg config.Config) error {
 	st := newStyles(theme{
-		Accent: cfg.Theme.Accent,
-		Border: cfg.Theme.Border,
-		Text:   cfg.Theme.Text,
-		Dim:    cfg.Theme.Dim,
-		Error:  cfg.Theme.Error,
+		Accent:    cfg.Theme.Accent,
+		AccentAlt: cfg.Theme.AccentAlt,
+		Border:    cfg.Theme.Border,
+		Text:      cfg.Theme.Text,
+		Dim:       cfg.Theme.Dim,
+		Error:     cfg.Theme.Error,
+		Bg:        cfg.Theme.Bg,
+		SelBg:     cfg.Theme.SelectionBg,
+		ChipText:  cfg.Theme.ChipText,
 	})
 	gallery, err := newGallery(libraryDir, st)
 	if err != nil {
@@ -139,17 +143,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	if m.helpVisible {
-		return renderHelpOverlay(m.width, m.height, m.helpKeyMap(), m.st)
-	}
-	switch m.screen {
-	case screenRendering:
-		return m.render.view()
-	case screenPlayer:
-		return m.player.view()
+	var view string
+	switch {
+	case m.helpVisible:
+		view = renderHelpOverlay(m.width, m.height, m.helpKeyMap(), m.st)
+	case m.screen == screenRendering:
+		view = m.render.view()
+	case m.screen == screenPlayer:
+		view = m.player.view()
 	default:
-		return m.gallery.view()
+		view = m.gallery.view()
 	}
+	return paintBackground(view, m.width, m.height, m.st)
 }
 
 func (m model) helpKeyMap() help.KeyMap {

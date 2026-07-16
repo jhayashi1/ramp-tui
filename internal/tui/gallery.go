@@ -15,11 +15,16 @@ import (
 	"github.com/jhayashi1/ascii-tui/internal/library"
 )
 
-// minPreviewWidth and minPreviewHeight gate the two-panel layout; below
-// either threshold the gallery falls back to a single full-width panel.
+// minPreviewWidth and minPreviewHeight gate the preview column; below
+// either threshold the gallery falls back to a single full-width list.
+// The detail column additionally needs the preview to keep at least
+// minMiddleForDetail columns after giving up detailWidth.
 const (
-	minPreviewWidth  = 56
-	minPreviewHeight = 12
+	minPreviewWidth    = 56
+	minPreviewHeight   = 12
+	detailWidth        = 26
+	minMiddleForDetail = 32
+	colGutter          = 2
 )
 
 type entryItem struct{ library.Entry }
@@ -28,26 +33,31 @@ func (e entryItem) Title() string       { return e.Name }
 func (e entryItem) Description() string { return e.Path }
 func (e entryItem) FilterValue() string { return e.Name }
 
-// compactDelegate renders each entry as a single line: an accent "▸ "
-// marker on the selected row, plain otherwise. The bordered panel around
-// the list carries the title, so there is no per-item description row.
-type compactDelegate struct{ st styles }
+// barDelegate renders each entry as a single line; the selected row is
+// marked with "▸ " and a background bar spanning the full list width,
+// tuxedo-style. The row is truncated and padded as plain text first so
+// the bar has no unstyled holes.
+type barDelegate struct{ st styles }
 
-func (d compactDelegate) Height() int                         { return 1 }
-func (d compactDelegate) Spacing() int                        { return 0 }
-func (d compactDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
-func (d compactDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+func (d barDelegate) Height() int                         { return 1 }
+func (d barDelegate) Spacing() int                        { return 0 }
+func (d barDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
+func (d barDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	e, ok := item.(entryItem)
 	if !ok {
 		return
 	}
-	marker := "  "
-	style := d.st.text
-	if index == m.Index() {
-		marker = d.st.accent.Render("▸ ")
-		style = d.st.selected
+	width := m.Width()
+	if width <= 0 {
+		fmt.Fprint(w, e.Name)
+		return
 	}
-	fmt.Fprint(w, marker+style.Render(truncateLabel(e.Name, max(1, m.Width()-2))))
+	name := truncateLabel(e.Name, max(1, width-2))
+	if index != m.Index() {
+		fmt.Fprint(w, "  "+d.st.text.Render(name))
+		return
+	}
+	fmt.Fprint(w, d.st.selBarText.Render(fitLine("▸ "+name, width)))
 }
 
 // inputMode says what the gallery is collecting text for: a gif path
@@ -79,7 +89,7 @@ type galleryModel struct {
 }
 
 func newGallery(dir string, st styles) (galleryModel, error) {
-	l := list.New(nil, compactDelegate{st: st}, 0, 0)
+	l := list.New(nil, barDelegate{st: st}, 0, 0)
 	l.SetShowHelp(false)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
@@ -131,16 +141,23 @@ func (g galleryModel) selectedEntry() (library.Entry, bool) {
 	return item.Entry, true
 }
 
-// panelDims computes the outer size of the library (and, when the
-// terminal is large enough, preview) panels plus the shared footer row.
-func (g galleryModel) panelDims() (leftW, rightW, panelH int, showPreview bool) {
-	panelH = max(1, g.height-1)
+// columnDims computes the widths of the library, preview, and detail
+// columns plus the shared body height (one row is reserved for the
+// status bar). Space is given up gracefully: the detail column drops
+// first, then the preview, leaving a full-width list.
+func (g galleryModel) columnDims() (leftW, midW, rightW, bodyH int, showPreview, showDetail bool) {
+	bodyH = max(1, g.height-1)
 	if g.width < minPreviewWidth || g.height < minPreviewHeight {
-		return g.width, 0, panelH, false
+		return g.width, 0, 0, bodyH, false, false
 	}
-	leftW = max(24, g.width*2/5)
-	rightW = max(1, g.width-leftW)
-	return leftW, rightW, panelH, true
+	leftW = min(34, max(24, g.width*22/100))
+	midW = max(1, g.width-leftW-colGutter)
+	if midW-detailWidth-colGutter >= minMiddleForDetail {
+		rightW = detailWidth
+		midW -= detailWidth + colGutter
+		showDetail = true
+	}
+	return leftW, midW, rightW, bodyH, true, showDetail
 }
 
 // setSize resizes the gallery's panels. It returns a command that forces
@@ -149,8 +166,8 @@ func (g galleryModel) panelDims() (leftW, rightW, panelH int, showPreview bool) 
 // since the selected path hasn't changed.
 func (g *galleryModel) setSize(width, height int) tea.Cmd {
 	g.width, g.height = width, height
-	leftW, _, _, _ := g.panelDims()
-	innerLeft := max(10, leftW-2-8)
+	leftW, _, _, _, _, _ := g.columnDims()
+	innerLeft := max(10, leftW-14)
 	g.picker.setWidth(innerLeft)
 	g.input.Width = innerLeft
 	if !g.layout() {
@@ -162,18 +179,20 @@ func (g *galleryModel) setSize(width, height int) tea.Cmd {
 	return nil
 }
 
-// layout sizes the list and, when shown, the preview to their panels'
+// layout sizes the list and, when shown, the preview to their columns'
 // interiors, reporting whether the preview's cache was invalidated.
-// renderPanel pads or clips short/long content to fit, so picker and
-// rename inputs simply render inside the same fixed-height left panel
-// without any special-casing here.
+// The left column spends three rows on chrome (title, spacer, section
+// rule); the middle spends three on its title-less header (header line,
+// spacer) plus renderColumn's clipping. renderColumn pads or clips
+// short/long content to fit, so picker and rename inputs simply render
+// inside the same fixed-height left column without special-casing here.
 func (g *galleryModel) layout() bool {
-	leftW, rightW, panelH, showPreview := g.panelDims()
-	g.list.SetSize(max(0, leftW-2), max(0, panelH-2))
+	leftW, midW, _, bodyH, showPreview, _ := g.columnDims()
+	g.list.SetSize(max(0, leftW), max(0, bodyH-3))
 	if !showPreview {
 		return false
 	}
-	return g.preview.setSize(max(0, rightW-2), max(0, panelH-2))
+	return g.preview.setSize(max(0, midW), max(0, bodyH-2))
 }
 
 func (g *galleryModel) stopTyping() {
@@ -368,7 +387,7 @@ func (g galleryModel) commitRename(newName string) (galleryModel, tea.Cmd) {
 }
 
 func (g galleryModel) view() string {
-	leftW, rightW, panelH, showPreview := g.panelDims()
+	leftW, midW, rightW, bodyH, showPreview, showDetail := g.columnDims()
 
 	var left string
 	switch g.mode {
@@ -377,37 +396,84 @@ func (g galleryModel) view() string {
 	case inputRename:
 		left = g.st.prompt.Render("rename to: " + g.input.View())
 	default:
-		left = g.list.View()
+		left = sectionRule(fmt.Sprintf("animations · %d", len(g.list.Items())), leftW, g.st) + "\n" + g.list.View()
 	}
 
-	body := renderPanel("library", left, leftW, panelH, g.st)
+	body := renderColumn("library", left, leftW, bodyH, g.st)
+	gutter := strings.Repeat(" ", colGutter)
 	if showPreview {
-		right := renderPanel("preview", g.preview.view(), rightW, panelH, g.st)
-		body = lipgloss.JoinHorizontal(lipgloss.Top, body, right)
+		mid := renderColumn("", g.middleContent(midW), midW, bodyH, g.st)
+		body = lipgloss.JoinHorizontal(lipgloss.Top, body, gutter, mid)
+	}
+	if showDetail {
+		detail := renderColumn("detail", g.detailContent(rightW), rightW, bodyH, g.st)
+		body = lipgloss.JoinHorizontal(lipgloss.Top, body, gutter, detail)
 	}
 
-	return body + "\n" + renderFooter(g.footerText(), g.width, g.footerStyle(), g.st)
+	return body + "\n" + g.statusBar()
 }
 
-func (g galleryModel) footerText() string {
-	if g.status != "" {
-		return g.status
+// middleContent stacks the tuxedo-style header line (glyph, name, dim
+// metadata) above the centered preview frame.
+func (g galleryModel) middleContent(width int) string {
+	var header string
+	if entry, ok := g.selectedEntry(); ok {
+		metaText := ""
+		if meta, ok := g.preview.currentMeta(); ok {
+			metaText = fmt.Sprintf("%dx%d · %s · %s", meta.width, meta.height, plural(meta.frames, "frame"), meta.source)
+		}
+		header = headerLine("▸", entry.Name, metaText, width, g.st)
 	}
-	switch g.mode {
-	case inputAddGIF:
-		return "enter render · tab complete · up/down select · esc cancel"
-	case inputRename:
-		return "enter rename · esc cancel"
-	case inputConfirmDelete:
-		return fmt.Sprintf("delete %q? [y/n]", g.deleteName)
+	return header + "\n\n" + g.preview.view()
+}
+
+func (g galleryModel) detailContent(width int) string {
+	if _, ok := g.selectedEntry(); !ok {
+		return g.st.dim.Render("no selection")
+	}
+	meta, ok := g.preview.currentMeta()
+	if !ok {
+		return g.st.dim.Render("loading...")
+	}
+	return renderDetail(meta, width, g.st)
+}
+
+// statusBar builds the footer: a mode chip, mode-specific key hints (or
+// a pending error) in the middle, and the library summary on the right.
+func (g galleryModel) statusBar() string {
+	chipStyle, chipLabel := g.st.chip, "NORMAL"
+	middleStyle := g.st.help
+	var middle string
+	switch {
+	case g.mode == inputAddGIF:
+		chipLabel = "ADD"
+		middle = "enter render · tab complete · ↑/↓ select · esc cancel"
+	case g.mode == inputRename:
+		chipLabel = "RENAME"
+		middle = "enter rename · esc cancel"
+	case g.mode == inputConfirmDelete:
+		chipStyle, chipLabel = g.st.chipAlert, "DELETE"
+		middleStyle = g.st.warning
+		middle = fmt.Sprintf("delete %q? [y/n]", g.deleteName)
+	case g.list.FilterState() == list.Filtering:
+		chipLabel = "FILTER"
+		middle = "type to filter · enter apply · esc cancel"
+	case g.list.FilterState() == list.FilterApplied:
+		chipLabel = "FILTER"
+		middle = "enter play · esc clear · a add · r rename · d delete · ? help · q quit"
 	default:
-		return "enter play · a add · r rename · d delete · / filter · ? help · q quit"
+		middle = "enter play · a add · r rename · d delete · / filter · ? help · q quit"
 	}
+	if g.status != "" {
+		middle, middleStyle = g.status, g.st.status
+	}
+	status := plural(len(g.list.Items()), "animation") + " · ascii-tui"
+	return renderStatusBar(chipStyle, chipLabel, middle, middleStyle, status, g.width, g.st)
 }
 
-func (g galleryModel) footerStyle() lipgloss.Style {
-	if g.status == "" && g.mode == inputConfirmDelete {
-		return g.st.warning
+func plural(n int, word string) string {
+	if n == 1 {
+		return fmt.Sprintf("1 %s", word)
 	}
-	return g.st.help
+	return fmt.Sprintf("%d %ss", n, word)
 }

@@ -2,29 +2,44 @@ package tui
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func TestGalleryPanelDimsFallsBackForSmallTerminal(t *testing.T) {
-	if _, _, _, show := (galleryModel{width: 50, height: 24}).panelDims(); show {
-		t.Error("panelDims shows a preview below minPreviewWidth")
+func TestGalleryColumnDimsDegradesGracefully(t *testing.T) {
+	if _, _, _, _, show, _ := (galleryModel{width: 50, height: 24}).columnDims(); show {
+		t.Error("columnDims shows a preview below minPreviewWidth")
 	}
-	if _, _, _, show := (galleryModel{width: 80, height: 10}).panelDims(); show {
-		t.Error("panelDims shows a preview below minPreviewHeight")
+	if _, _, _, _, show, _ := (galleryModel{width: 80, height: 10}).columnDims(); show {
+		t.Error("columnDims shows a preview below minPreviewHeight")
 	}
 
-	leftW, rightW, panelH, show := (galleryModel{width: 80, height: 24}).panelDims()
+	// 80 cols: list + preview, no room for the detail column.
+	leftW, midW, rightW, bodyH, show, detail := (galleryModel{width: 80, height: 24}).columnDims()
 	if !show {
-		t.Fatal("panelDims hides the preview at 80x24")
+		t.Fatal("columnDims hides the preview at 80x24")
 	}
-	if leftW+rightW != 80 {
-		t.Errorf("leftW+rightW = %d, want 80", leftW+rightW)
+	if detail || rightW != 0 {
+		t.Errorf("detail shown at 80x24 (rightW=%d), want preview-only", rightW)
 	}
-	if panelH != 23 {
-		t.Errorf("panelH = %d, want 23", panelH)
+	if leftW+colGutter+midW != 80 {
+		t.Errorf("leftW+gutter+midW = %d, want 80", leftW+colGutter+midW)
+	}
+	if bodyH != 23 {
+		t.Errorf("bodyH = %d, want 23", bodyH)
+	}
+
+	// 120 cols: all three columns.
+	leftW, midW, rightW, _, show, detail = (galleryModel{width: 120, height: 30}).columnDims()
+	if !show || !detail {
+		t.Fatalf("columns at 120x30 = preview:%v detail:%v, want both", show, detail)
+	}
+	if rightW != detailWidth {
+		t.Errorf("rightW = %d, want %d", rightW, detailWidth)
+	}
+	if leftW+midW+rightW+2*colGutter != 120 {
+		t.Errorf("column widths sum to %d, want 120", leftW+midW+rightW+2*colGutter)
 	}
 }
 
@@ -50,16 +65,16 @@ func TestGalleryPreviewLoadsAndFollowsSelection(t *testing.T) {
 	if firstPath == "" {
 		t.Fatal("preview did not select the initial entry")
 	}
-	if got := m.gallery.preview.view(); !strings.Contains(got, "first") {
-		t.Errorf("preview view = %q, want it to mention %q", got, "first")
+	if meta, ok := m.gallery.preview.currentMeta(); !ok || meta.name != "first" {
+		t.Errorf("preview meta = %+v (loaded=%v), want name %q", meta, ok, "first")
 	}
 
 	m = step(t, m, tea.KeyMsg{Type: tea.KeyDown})
 	if m.gallery.preview.path == firstPath {
 		t.Fatal("preview did not follow the selection change")
 	}
-	if got := m.gallery.preview.view(); !strings.Contains(got, "second") {
-		t.Errorf("preview view = %q, want it to mention %q", got, "second")
+	if meta, ok := m.gallery.preview.currentMeta(); !ok || meta.name != "second" {
+		t.Errorf("preview meta = %+v (loaded=%v), want name %q", meta, ok, "second")
 	}
 }
 
@@ -81,8 +96,8 @@ func TestGalleryPreviewReloadsAfterReturningFromPlayer(t *testing.T) {
 	m = updated.(model)
 	m = runCmd(t, m, cmd)
 
-	if got := m.gallery.preview.view(); !strings.Contains(got, "first") {
-		t.Fatalf("preview not loaded initially: %q", got)
+	if _, ok := m.gallery.preview.currentMeta(); !ok {
+		t.Fatalf("preview not loaded initially: %q", m.gallery.preview.view())
 	}
 
 	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
@@ -97,8 +112,8 @@ func TestGalleryPreviewReloadsAfterReturningFromPlayer(t *testing.T) {
 	if m.screen != screenGallery {
 		t.Fatalf("screen = %v, want gallery", m.screen)
 	}
-	if got := m.gallery.preview.view(); !strings.Contains(got, "first") {
-		t.Errorf("preview view after returning from player = %q, want it to mention the entry", got)
+	if meta, ok := m.gallery.preview.currentMeta(); !ok || meta.name != "first" {
+		t.Errorf("preview meta after returning from player = %+v (loaded=%v), want name %q", meta, ok, "first")
 	}
 }
 

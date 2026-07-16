@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 )
@@ -90,4 +92,18 @@ func (k playerKeyMap) FullHelp() [][]key.Binding {
 		{k.SpeedUp, k.SpeedDown, k.Next, k.Prev},
 		{k.Filter, k.Help, k.Back, k.Quit},
 	}
+}
+
+// shortHelpLine joins a keymap's short-help bindings into a tuxedo-style
+// "key action · key action" hint string for the status bar.
+func shortHelpLine(bindings []key.Binding) string {
+	parts := make([]string, 0, len(bindings))
+	for _, b := range bindings {
+		h := b.Help()
+		if h.Key == "" {
+			continue
+		}
+		parts = append(parts, h.Key+" "+h.Desc)
+	}
+	return strings.Join(parts, " · ")
 }
