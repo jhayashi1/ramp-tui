@@ -44,8 +44,8 @@ either screen for a full key reference; any key closes it.
 
 > [!NOTE]
 > If you're used to the old `left`/`right` switching between animations:
-> that's now `n`/`p`. `left`/`h` and `right`/`l` seek within the current
-> animation instead, matching mpv/vlc.
+> that's now `n`/`p`. `left`/`h` and `right`/`l` scrub frame-by-frame within
+> the current animation instead, accelerating the longer you hold them.
 
 **Gallery**
 
@@ -64,7 +64,7 @@ either screen for a full key reference; any key closes it.
 | Key | Action |
 |---|---|
 | `space` | pause / resume |
-| `left`/`h`, `right`/`l` | seek back/forward 1 second |
+| `left`/`h`, `right`/`l` | scrub one frame back/forward (pauses); hold to accelerate |
 | `,` / `.` | step one frame back/forward (pauses) |
 | `+`/`=`, `-` | speed up / down (x1.25 steps, 0.25x-8x) |
 | `n` / `p` | next / previous animation |

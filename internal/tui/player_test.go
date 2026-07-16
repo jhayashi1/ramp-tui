@@ -34,41 +34,54 @@ func newTestPlayer(t *testing.T, delays []time.Duration) playerModel {
 	return p
 }
 
-func TestPlayerSeekByMovesForward(t *testing.T) {
-	p := newTestPlayer(t, []time.Duration{time.Second, time.Second, time.Second, time.Second})
-	p.seekBy(2500 * time.Millisecond)
-	if p.frame != 2 {
-		t.Errorf("frame = %d, want 2", p.frame)
+func TestPlayerSeekFramesSingleTapStepsAndPauses(t *testing.T) {
+	p := newTestPlayer(t, make([]time.Duration, 10))
+	now := time.Now()
+	p.seekFrames(1, now)
+	if p.frame != 1 || !p.paused {
+		t.Errorf("frame=%d paused=%v, want frame=1 paused=true", p.frame, p.paused)
 	}
 }
 
-func TestPlayerSeekByWrapsForward(t *testing.T) {
-	p := newTestPlayer(t, []time.Duration{time.Second, time.Second, time.Second, time.Second})
-	p.frame = 3 // elapsed = 3s, total = 4s
-	p.seekBy(2 * time.Second)
-	if p.frame != 1 {
-		t.Errorf("frame = %d, want 1 (wrapped past the loop end)", p.frame)
+func TestPlayerSeekFramesDirectionChangeResets(t *testing.T) {
+	p := newTestPlayer(t, make([]time.Duration, 32))
+	now := time.Now()
+	// A backward tap right after forward taps must step by 1, not by an
+	// accelerated amount carried over from the forward run.
+	for i := range 10 {
+		p.seekFrames(1, now.Add(time.Duration(i)*10*time.Millisecond))
+	}
+	before := p.frame
+	p.seekFrames(-1, now.Add(11*10*time.Millisecond))
+	if p.frame != before-1 {
+		t.Errorf("frame = %d, want %d (direction change should reset to a 1-frame step)", p.frame, before-1)
 	}
 }
 
-func TestPlayerSeekByWrapsBackward(t *testing.T) {
-	p := newTestPlayer(t, []time.Duration{time.Second, time.Second, time.Second, time.Second})
-	p.seekBy(-1500 * time.Millisecond)
-	if p.frame != 2 {
-		t.Errorf("frame = %d, want 2 (wrapped before the loop start)", p.frame)
+func TestPlayerSeekFramesAcceleratesOnHold(t *testing.T) {
+	// Enough frames that 16 accelerating steps never wrap the loop.
+	p := newTestPlayer(t, make([]time.Duration, 512))
+	now := time.Now()
+	for i := range 16 {
+		p.seekFrames(1, now.Add(time.Duration(i)*10*time.Millisecond))
+	}
+	// seekRun 0..7 step by 1 (8 frames), 8..15 step by 2 (16 frames).
+	if want := 8*1 + 8*2; p.frame != want {
+		t.Errorf("frame after 16 held presses = %d, want %d (acceleration ramp)", p.frame, want)
 	}
 }
 
-func TestPlayerSeekByPreservesPauseState(t *testing.T) {
-	p := newTestPlayer(t, []time.Duration{time.Second, time.Second})
-	p.paused = true
-	genBefore := p.gen
-	p.seekBy(time.Second)
-	if !p.paused {
-		t.Error("seekBy unpaused the player")
+func TestPlayerSeekFramesGapResets(t *testing.T) {
+	p := newTestPlayer(t, make([]time.Duration, 32))
+	now := time.Now()
+	for i := range 10 {
+		p.seekFrames(1, now.Add(time.Duration(i)*10*time.Millisecond))
 	}
-	if p.gen == genBefore {
-		t.Error("seekBy did not bump gen")
+	before := p.frame
+	// A press after the hold window is a fresh tap: step by 1.
+	p.seekFrames(1, now.Add(10*10*time.Millisecond+2*seekHoldWindow))
+	if p.frame != before+1 {
+		t.Errorf("frame = %d, want %d (gap past seekHoldWindow should reset the run)", p.frame, before+1)
 	}
 }
 
@@ -142,15 +155,15 @@ func TestFormatSpeed(t *testing.T) {
 	}
 }
 
-func TestPlayerSeekKeyKeepsPlaying(t *testing.T) {
+func TestPlayerSeekKeyStepsAndPauses(t *testing.T) {
 	m := step(t, fixtureModel(t), tea.KeyMsg{Type: tea.KeyEnter})
 	before := m.player.frame
 	m = step(t, m, keyRune('l'))
-	if m.player.paused {
-		t.Error("seeking forward paused playback")
+	if !m.player.paused {
+		t.Error("seeking forward did not pause playback")
 	}
-	if m.player.frame == before && m.player.totalDuration() > time.Second {
-		t.Error("seek key did not move the frame")
+	if got := m.player.frame; got != before+1 {
+		t.Errorf("frame = %d, want %d (one-frame step)", got, before+1)
 	}
 }
 

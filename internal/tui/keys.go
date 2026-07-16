@@ -67,8 +67,8 @@ type playerKeyMap struct {
 func newPlayerKeyMap() playerKeyMap {
 	return playerKeyMap{
 		Pause:       key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "pause")),
-		SeekBack:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "seek -1s")),
-		SeekForward: key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "seek +1s")),
+		SeekBack:    key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "scrub")),
+		SeekForward: key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "scrub")),
 		StepBack:    key.NewBinding(key.WithKeys(","), key.WithHelp(",", "step back")),
 		StepForward: key.NewBinding(key.WithKeys("."), key.WithHelp(".", "step fwd")),
 		SpeedUp:     key.NewBinding(key.WithKeys("+", "="), key.WithHelp("+", "speed up")),

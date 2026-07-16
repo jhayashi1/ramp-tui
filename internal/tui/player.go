@@ -32,6 +32,11 @@ const (
 // can't schedule an effectively-immediate, CPU-spinning tick loop.
 const minTickDelay = 10 * time.Millisecond
 
+// A held arrow accelerates: seekRun counts consecutive same-direction
+// presses arriving within seekHoldWindow (longer than the OS repeat
+// interval, shorter than a deliberate re-tap).
+const seekHoldWindow = 150 * time.Millisecond
+
 type frameTickMsg struct{ gen int }
 
 // refitTickMsg fires when the resize debounce timer elapses.
@@ -65,6 +70,13 @@ type playerModel struct {
 	// re-renders whenever the viewport or entry changes again.
 	refitGen  int
 	refitting bool
+	// Arrow-seek hold tracking. Because Bubble Tea v1 has no key-repeat
+	// event, a held arrow is inferred from the OS auto-repeat stream:
+	// consecutive same-direction seeks within seekHoldWindow grow seekRun,
+	// which accelerates the per-press step.
+	seekDir  int
+	seekRun  int
+	seekLast time.Time
 }
 
 func newPlayer(entries []library.Entry, index int, st styles, speed float64) (playerModel, tea.Cmd) {
@@ -101,8 +113,8 @@ func (p *playerModel) load() {
 	p.buildElapsed()
 }
 
-// buildElapsed recomputes the prefix-sum start times used by seekBy and
-// the HUD's elapsed/total display.
+// buildElapsed recomputes the prefix-sum start times used by the HUD's
+// progress bar and elapsed/total display.
 func (p *playerModel) buildElapsed() {
 	p.elapsed = make([]time.Duration, len(p.anim.Delays))
 	var sum time.Duration
@@ -120,30 +132,34 @@ func (p playerModel) totalDuration() time.Duration {
 	return p.elapsed[len(p.elapsed)-1] + p.anim.Delays[len(p.anim.Delays)-1]
 }
 
-// frameAt returns the index of the frame showing at source-time t.
-func (p playerModel) frameAt(t time.Duration) int {
-	for i := len(p.elapsed) - 1; i >= 0; i-- {
-		if t >= p.elapsed[i] {
-			return i
-		}
+// seekFrames steps by an accelerating number of frames in direction dir
+// (-1 or +1) and pauses. Holding the arrow produces an OS auto-repeat
+// stream; same-direction presses within seekHoldWindow grow seekRun so
+// the step size ramps up, while a gap or direction change resets it.
+func (p *playerModel) seekFrames(dir int, now time.Time) {
+	if dir == p.seekDir && now.Sub(p.seekLast) <= seekHoldWindow {
+		p.seekRun++
+	} else {
+		p.seekRun = 0
 	}
-	return 0
+	p.seekDir = dir
+	p.seekLast = now
+	p.stepFrame(dir * seekStep(p.seekRun))
 }
 
-// seekBy moves playback by d (negative seeks backward), wrapping around
-// the loop. It leaves the paused state untouched: seeking while paused
-// stays paused, seeking while playing keeps playing from the new frame.
-func (p *playerModel) seekBy(d time.Duration) {
-	total := p.totalDuration()
-	if total <= 0 {
-		return
+// seekStep maps how long the arrow has been held (in repeat count) to a
+// per-press frame step: fine control on a tap, faster on a sustained hold.
+func seekStep(run int) int {
+	switch {
+	case run < 8:
+		return 1
+	case run < 16:
+		return 2
+	case run < 24:
+		return 4
+	default:
+		return 8
 	}
-	target := (p.elapsed[p.frame] + d) % total
-	if target < 0 {
-		target += total
-	}
-	p.frame = p.frameAt(target)
-	p.gen++
 }
 
 // stepFrame moves by delta frames and pauses, since single-stepping
@@ -355,11 +371,11 @@ func (p playerModel) update(msg tea.Msg) (playerModel, tea.Cmd) {
 			p.gen++
 			return p, p.tickCmd()
 		case key.Matches(msg, p.keys.SeekBack):
-			p.seekBy(-time.Second)
-			return p, p.tickCmd()
+			p.seekFrames(-1, time.Now())
+			return p, nil
 		case key.Matches(msg, p.keys.SeekForward):
-			p.seekBy(time.Second)
-			return p, p.tickCmd()
+			p.seekFrames(1, time.Now())
+			return p, nil
 		case key.Matches(msg, p.keys.StepBack):
 			p.stepFrame(-1)
 			return p, nil

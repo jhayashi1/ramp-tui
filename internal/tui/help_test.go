@@ -34,8 +34,8 @@ func TestHelpOverlayOpensFromPlayer(t *testing.T) {
 	if !m.helpVisible {
 		t.Fatal("help overlay did not open from the player screen")
 	}
-	if got := m.View(); !strings.Contains(got, "seek") {
-		t.Errorf("help view = %q, want the player's seek binding description", got)
+	if got := m.View(); !strings.Contains(got, "scrub") {
+		t.Errorf("help view = %q, want the player's scrub binding description", got)
 	}
 }
 
