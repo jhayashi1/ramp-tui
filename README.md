@@ -33,10 +33,42 @@ ascii-tui play animation.frames
 ascii-tui play animation.frames --once --speed 2
 ```
 
-In the gallery: `enter` plays the selected animation, `a` renders a new gif,
-`d` deletes an entry, `/` filters. In the player: `space` pauses, `left`/`right`
-switch between animations, `f` toggles background filtering (re-rendered and
-saved, so the choice sticks), `esc` returns to the gallery.
+The gallery shows a library panel next to a live preview of the selected
+entry (name, frame count, and dimensions); on narrow terminals (under 56
+columns or 12 rows) the preview drops and the library panel takes the full
+width. Press `?` on either screen for a full key reference; any key closes
+it.
+
+> [!NOTE]
+> If you're used to the old `left`/`right` switching between animations:
+> that's now `n`/`p`. `left`/`h` and `right`/`l` seek within the current
+> animation instead, matching mpv/vlc.
+
+**Gallery**
+
+| Key | Action |
+|---|---|
+| `enter` | play the selected animation |
+| `a` | render a new gif into the library |
+| `r` | rename the selected entry |
+| `d` | delete, with a `y`/`n` confirmation |
+| `/` | filter the list |
+| `?` | show all key bindings |
+| `q` / `ctrl+c` | quit |
+
+**Player**
+
+| Key | Action |
+|---|---|
+| `space` | pause / resume |
+| `left`/`h`, `right`/`l` | seek back/forward 1 second |
+| `,` / `.` | step one frame back/forward (pauses) |
+| `+`/`=`, `-` | speed up / down (x1.25 steps, 0.25x-8x) |
+| `n` / `p` | next / previous animation |
+| `f` | toggle background filtering (re-rendered and saved) |
+| `?` | show all key bindings |
+| `esc` | back to the gallery |
+| `q` / `ctrl+c` | quit |
 
 The `a` prompt has fzf-style fuzzy search: it recursively finds `.gif` files
 under the directory portion of the typed path (a few levels deep) and filters
@@ -59,6 +91,35 @@ ssh other-machine ascii-tui play giphy.frames
 The library lives in the platform cache directory
 (`~/.cache/ascii-tui/library` on Linux, `%LOCALAPPDATA%\ascii-tui\library`
 on Windows).
+
+## Configuration
+
+An optional TOML file at `<user config dir>/ascii-tui/config.toml`
+(`~/.config/ascii-tui/config.toml` on Linux,
+`%AppData%\ascii-tui\config.toml` on Windows) sets defaults for playback
+speed, new-render options, and the theme. It's entirely optional: a missing
+file uses the built-in defaults, and any field you omit keeps its default
+too. A file that fails to parse prints a warning and falls back to defaults
+rather than stopping the program.
+
+```toml
+[playback]
+speed = 1.0                 # initial player speed, 0.25-8.0
+
+[render]
+filter_background = false   # drop a detected solid background by default
+complex = false              # use a denser character ramp by default
+
+[theme]
+accent = "212"  # selection marker, borders' title, progress bar
+border = "240"  # panel borders
+text   = "252"  # normal text
+dim    = "241"  # help text, secondary labels
+error  = "203"  # error/warning text
+```
+
+Theme values accept anything `lipgloss.Color` does: a 256-color index (as
+above), a hex code like `"#ff6ac1"`, or an ANSI name.
 
 ## Development
 
