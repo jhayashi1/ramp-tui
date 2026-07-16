@@ -81,7 +81,7 @@ func newPlayerKeyMap() playerKeyMap {
 }
 
 func (k playerKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Pause, k.SeekBack, k.SeekForward, k.Next, k.Prev, k.Help, k.Back, k.Quit}
+	return []key.Binding{k.Pause, k.SeekBack, k.SeekForward, k.Next, k.Prev, k.Filter, k.Help, k.Back, k.Quit}
 }
 
 func (k playerKeyMap) FullHelp() [][]key.Binding {
