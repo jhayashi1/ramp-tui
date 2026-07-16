@@ -63,6 +63,45 @@ func TestGalleryPreviewLoadsAndFollowsSelection(t *testing.T) {
 	}
 }
 
+// TestGalleryPreviewReloadsAfterReturningFromPlayer guards against a
+// regression where returning from the player left the preview stuck
+// showing "loading preview..." forever: reload() cleared the cache but
+// not the tracked path, so reconcilePreview saw no change and never
+// re-fetched, and backToGalleryMsg didn't even call reconcilePreview.
+func TestGalleryPreviewReloadsAfterReturningFromPlayer(t *testing.T) {
+	dir := t.TempDir()
+	saveTinyEntry(t, dir, "first")
+
+	gallery, err := newGallery(dir, defaultStyles())
+	if err != nil {
+		t.Fatalf("newGallery: %v", err)
+	}
+	m := model{gallery: gallery}
+	updated, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = updated.(model)
+	m = runCmd(t, m, cmd)
+
+	if got := m.gallery.preview.view(); !strings.Contains(got, "first") {
+		t.Fatalf("preview not loaded initially: %q", got)
+	}
+
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.screen != screenPlayer {
+		t.Fatalf("screen = %v, want player", m.screen)
+	}
+
+	updated, cmd = m.Update(backToGalleryMsg{})
+	m = updated.(model)
+	m = runCmd(t, m, cmd)
+
+	if m.screen != screenGallery {
+		t.Fatalf("screen = %v, want gallery", m.screen)
+	}
+	if got := m.gallery.preview.view(); !strings.Contains(got, "first") {
+		t.Errorf("preview view after returning from player = %q, want it to mention the entry", got)
+	}
+}
+
 func TestGalleryDeleteConfirmYDeletes(t *testing.T) {
 	m := fixtureModel(t)
 	targetPath := m.gallery.entries()[0].Path

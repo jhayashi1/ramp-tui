@@ -123,7 +123,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err := m.gallery.reload(); err != nil {
 			m.gallery.status = err.Error()
 		}
-		return m, nil
+		return m, m.gallery.reconcilePreview()
 	}
 
 	var cmd tea.Cmd

@@ -347,6 +347,36 @@ func TestPlayerRefitsOnResize(t *testing.T) {
 	}
 }
 
+// TestPlayerRefitPersistsToLibrary guards against a regression where a
+// resize-triggered refit only updated the in-memory animation: every
+// future play of the same entry would refit again from the stale
+// on-disk size, showing "fitting to..." every single time instead of
+// just once.
+func TestPlayerRefitPersistsToLibrary(t *testing.T) {
+	m := step(t, fixtureModelResizable(t), tea.KeyMsg{Type: tea.KeyEnter})
+	path := m.player.entries[m.player.index].Path
+
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 40, Height: 12})
+	m = updated.(model)
+
+	player, cmd := m.player.update(refitTickMsg{gen: m.player.refitGen})
+	m.player = player
+	if cmd == nil {
+		t.Fatal("debounce tick produced no render command")
+	}
+	player, _ = m.player.update(cmd())
+	m.player = player
+
+	saved, err := library.Load(path)
+	if err != nil {
+		t.Fatalf("loading saved entry: %v", err)
+	}
+	if saved.Width != m.player.anim.Width || saved.Height != m.player.anim.Height {
+		t.Errorf("saved dims = %dx%d, want %dx%d (refit not persisted to disk)",
+			saved.Width, saved.Height, m.player.anim.Width, m.player.anim.Height)
+	}
+}
+
 func TestPlayerDropsStaleRefitResult(t *testing.T) {
 	m := step(t, fixtureModelResizable(t), tea.KeyMsg{Type: tea.KeyEnter})
 	before := m.player.anim

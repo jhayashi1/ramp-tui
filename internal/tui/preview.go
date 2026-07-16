@@ -88,6 +88,14 @@ func (p *previewModel) selectEntry(entry library.Entry) tea.Cmd {
 	})
 }
 
+// reset clears the cache and the current selection, so that after e.g.
+// a reload() the next reconcilePreview reselects and re-renders from
+// scratch instead of assuming the still-selected path is unchanged.
+func (p *previewModel) reset() {
+	p.cache = make(map[string]previewEntry)
+	p.clear()
+}
+
 // clear drops the current selection, e.g. when the library is empty.
 func (p *previewModel) clear() {
 	p.path, p.name = "", ""

@@ -227,14 +227,27 @@ func (p *playerModel) scheduleRefit() tea.Cmd {
 }
 
 // refitCmd re-renders the animation from its embedded GIF to fit the
-// current viewport, using the options it was originally rendered with.
+// current viewport, using the options it was originally rendered with,
+// and saves the result back to the library so an entry whose stored
+// size no longer matches the viewport (e.g. after a terminal resize, or
+// a change to how much space the UI reserves) only needs to refit once
+// rather than on every future play.
 func (p playerModel) refitCmd() tea.Cmd {
 	gen := p.refitGen
 	anim := p.anim
+	path := p.entries[p.index].Path
 	opts := p.renderOptions()
 	return func() tea.Msg {
 		re, err := engine.Render(bytes.NewReader(anim.SourceGIF), opts, nil)
-		return refitDoneMsg{gen: gen, anim: re, err: err}
+		if err != nil {
+			return refitDoneMsg{gen: gen, err: err}
+		}
+		re.SourceGIF = anim.SourceGIF
+		re.SourceName = anim.SourceName
+		if err := library.Write(path, re); err != nil {
+			return refitDoneMsg{gen: gen, err: err}
+		}
+		return refitDoneMsg{gen: gen, anim: re}
 	}
 }
 

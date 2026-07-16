@@ -110,7 +110,7 @@ func (g *galleryModel) reload() error {
 		items[i] = entryItem{e}
 	}
 	g.list.SetItems(items)
-	g.preview.cache = make(map[string]previewEntry)
+	g.preview.reset()
 	return nil
 }
 
