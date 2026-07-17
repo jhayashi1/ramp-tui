@@ -58,6 +58,63 @@ accent = "99"
 	}
 }
 
+func TestLoadParsesKeysAndFillsEmpty(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	sample := `
+[keys]
+pause = ["x"]
+seek_back = []
+`
+	if err := os.WriteFile(path, []byte(sample), 0o644); err != nil {
+		t.Fatalf("writing sample config: %v", err)
+	}
+
+	cfg, err := load(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got := cfg.Keys.Pause; len(got) != 1 || got[0] != "x" {
+		t.Errorf("pause = %v, want [x]", got)
+	}
+	def := DefaultKeys()
+	if got := cfg.Keys.SeekBack; len(got) != len(def.SeekBack) || got[0] != def.SeekBack[0] {
+		t.Errorf("seek_back = %v, want default %v (explicit empty list falls back)", got, def.SeekBack)
+	}
+	if got := cfg.Keys.Next; len(got) != 1 || got[0] != "n" {
+		t.Errorf("next = %v, want default [n] (absent action keeps default)", got)
+	}
+}
+
+func TestSaveRoundTripsKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	cfg := Defaults()
+	cfg.Keys.Pause = []string{"x", "space"}
+	if err := save(path, cfg); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	loaded, err := load(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got := loaded.Keys.Pause; len(got) != 2 || got[0] != "x" || got[1] != "space" {
+		t.Errorf("pause after roundtrip = %v, want [x space]", got)
+	}
+	if loaded.Theme.Accent != cfg.Theme.Accent || loaded.Playback.Speed != cfg.Playback.Speed {
+		t.Error("save dropped non-key settings")
+	}
+}
+
+func TestSaveCreatesConfigDir(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nested", "dir", "config.toml")
+	if err := save(path, Defaults()); err != nil {
+		t.Fatalf("save into missing dir: %v", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("config file not created: %v", err)
+	}
+}
+
 func TestLoadRejectsBadTOML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bad.toml")
 	if err := os.WriteFile(path, []byte("not = [valid toml"), 0o644); err != nil {

@@ -16,11 +16,47 @@ type Config struct {
 	Playback Playback `toml:"playback"`
 	Render   Render   `toml:"render"`
 	Theme    Theme    `toml:"theme"`
+	Keys     Keys     `toml:"keys"`
 }
 
 // Playback holds player defaults.
 type Playback struct {
 	Speed float64 `toml:"speed"`
+}
+
+// Keys maps each player action to the keys that trigger it. Values are
+// Bubble Tea key names ("n", ",", "left", "ctrl+n") with one exception:
+// the space bar is spelled "space" so hand-edited files don't need a
+// bare " ". An empty list falls back to the action's default binding.
+type Keys struct {
+	Pause       []string `toml:"pause"`
+	SeekBack    []string `toml:"seek_back"`
+	SeekForward []string `toml:"seek_forward"`
+	StepBack    []string `toml:"step_back"`
+	StepForward []string `toml:"step_forward"`
+	SpeedUp     []string `toml:"speed_up"`
+	SpeedDown   []string `toml:"speed_down"`
+	Next        []string `toml:"next"`
+	Prev        []string `toml:"prev"`
+	Filter      []string `toml:"filter"`
+}
+
+// DefaultKeys returns the built-in player bindings, used both as the
+// Defaults() value and as the per-action fallback when a config entry
+// is empty or reset.
+func DefaultKeys() Keys {
+	return Keys{
+		Pause:       []string{"space"},
+		SeekBack:    []string{"left", "h"},
+		SeekForward: []string{"right", "l"},
+		StepBack:    []string{","},
+		StepForward: []string{"."},
+		SpeedUp:     []string{"+", "="},
+		SpeedDown:   []string{"-"},
+		Next:        []string{"n"},
+		Prev:        []string{"p"},
+		Filter:      []string{"f"},
+	}
 }
 
 // Render holds defaults for gifs rendered through the gallery's "add"
@@ -51,6 +87,7 @@ type Theme struct {
 func Defaults() Config {
 	return Config{
 		Playback: Playback{Speed: 1},
+		Keys:     DefaultKeys(),
 		Theme: Theme{
 			Accent:      "212",
 			AccentAlt:   "179",
@@ -105,5 +142,53 @@ func load(path string) (Config, error) {
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return Config{}, fmt.Errorf("parsing %s: %w", path, err)
 	}
+	cfg.Keys.FillEmpty()
 	return cfg, nil
+}
+
+// Save writes cfg to the config file, creating its directory if needed.
+// It is used by the TUI's keybinds screen to persist rebinds.
+func Save(cfg Config) error {
+	path, err := Path()
+	if err != nil {
+		return err
+	}
+	return save(path, cfg)
+}
+
+func save(path string, cfg Config) error {
+	data, err := toml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("encoding config: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("creating config dir: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+	return nil
+}
+
+// FillEmpty restores the default binding for any action whose key list
+// is empty, so an explicit `pause = []` in the file (or a zero-value
+// Keys) can never leave an action unreachable.
+func (k *Keys) FillEmpty() {
+	def := DefaultKeys()
+	for _, pair := range []struct{ dst, src *[]string }{
+		{&k.Pause, &def.Pause},
+		{&k.SeekBack, &def.SeekBack},
+		{&k.SeekForward, &def.SeekForward},
+		{&k.StepBack, &def.StepBack},
+		{&k.StepForward, &def.StepForward},
+		{&k.SpeedUp, &def.SpeedUp},
+		{&k.SpeedDown, &def.SpeedDown},
+		{&k.Next, &def.Next},
+		{&k.Prev, &def.Prev},
+		{&k.Filter, &def.Filter},
+	} {
+		if len(*pair.dst) == 0 {
+			*pair.dst = *pair.src
+		}
+	}
 }

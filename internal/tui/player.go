@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/jhayashi1/ascii-tui/internal/config"
 	"github.com/jhayashi1/ascii-tui/internal/engine"
 	"github.com/jhayashi1/ascii-tui/internal/frames"
 	"github.com/jhayashi1/ascii-tui/internal/library"
@@ -79,7 +80,7 @@ type playerModel struct {
 	seekLast time.Time
 }
 
-func newPlayer(entries []library.Entry, index int, st styles, speed float64) (playerModel, tea.Cmd) {
+func newPlayer(entries []library.Entry, index int, st styles, speed float64, keys config.Keys) (playerModel, tea.Cmd) {
 	if speed <= 0 {
 		speed = 1
 	}
@@ -88,7 +89,7 @@ func newPlayer(entries []library.Entry, index int, st styles, speed float64) (pl
 		index:   index,
 		speed:   clampSpeed(speed),
 		st:      st,
-		keys:    newPlayerKeyMap(),
+		keys:    newPlayerKeyMap(keys),
 		bar:     progress.New(progress.WithSolidFill(st.theme.Accent)),
 	}
 	p.load()

@@ -56,10 +56,11 @@ either screen for a full key reference; any key closes it.
 | `r` | rename the selected entry |
 | `d` | delete, with a `y`/`n` confirmation |
 | `/` | filter the list |
+| `k` | configure player keybinds |
 | `?` | show all key bindings |
 | `q` / `ctrl+c` | quit |
 
-**Player**
+**Player** (defaults; rebindable via the gallery's `k` menu)
 
 | Key | Action |
 |---|---|
@@ -72,6 +73,16 @@ either screen for a full key reference; any key closes it.
 | `?` | show all key bindings |
 | `esc` | back to the gallery |
 | `q` / `ctrl+c` | quit |
+
+**Keybinds menu** (`k` from the gallery)
+
+Every playback action above can be rebound. `↑`/`↓` (or `k`/`j`) select an
+action, `enter` rebinds it to the next key you press, `a` adds an extra key
+alongside the existing ones, `d` resets the action to its default, and `D`
+resets everything. Changes are saved to the config file immediately.
+`esc`, `q`, `ctrl+c`, and `?` are reserved (they navigate the player itself)
+and a key already used by another action is rejected, so bindings can never
+collide or lock you out.
 
 The `a` prompt has fzf-style fuzzy search: it recursively finds `.gif` files
 under the directory portion of the typed path (a few levels deep) and filters
@@ -100,7 +111,8 @@ on Windows).
 An optional TOML file at `<user config dir>/ascii-tui/config.toml`
 (`~/.config/ascii-tui/config.toml` on Linux,
 `%AppData%\ascii-tui\config.toml` on Windows) sets defaults for playback
-speed, new-render options, and the theme. It's entirely optional: a missing
+speed, new-render options, the theme, and the player keybinds (the in-app
+`k` menu reads and writes the same file). It's entirely optional: a missing
 file uses the built-in defaults, and any field you omit keeps its default
 too. A file that fails to parse prints a warning and falls back to defaults
 rather than stopping the program.
@@ -123,12 +135,29 @@ error        = "203"  # error/warning text, delete chip
 bg           = "234"  # app background fill
 selection_bg = "237"  # selected-row bar
 chip_text    = "234"  # text inside the mode chip
+
+[keys]                # player bindings; each action takes a list of keys
+pause        = ["space"]
+seek_back    = ["left", "h"]
+seek_forward = ["right", "l"]
+step_back    = [","]
+step_forward = ["."]
+speed_up     = ["+", "="]
+speed_down   = ["-"]
+next         = ["n"]
+prev         = ["p"]
+filter       = ["f"]
 ```
 
 Theme values accept anything `lipgloss.Color` does: a 256-color index (as
 above) or a hex code like `"#ff6ac1"`. The background colors (`bg`,
 `selection_bg`) support 256-color indexes and hex codes; set `bg = ""` to
 keep your terminal's own background instead of the fill.
+
+Key values are Bubble Tea key names: single characters (`"n"`, `","`),
+special keys (`"left"`, `"enter"`, `"tab"`), and modifier combos
+(`"ctrl+n"`, `"shift+up"`); the space bar is spelled `"space"`. An empty
+list falls back to that action's default binding.
 
 ## Development
 

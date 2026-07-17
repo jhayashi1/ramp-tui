@@ -276,6 +276,8 @@ func (g galleryModel) updateInner(msg tea.Msg) (galleryModel, tea.Cmd) {
 				g.layout()
 			}
 			return g, nil
+		case key.Matches(keyMsg, g.keys.Keybinds):
+			return g, func() tea.Msg { return openKeybindsMsg{} }
 		case key.Matches(keyMsg, g.keys.Help):
 			return g, func() tea.Msg { return toggleHelpMsg{} }
 		}
@@ -456,9 +458,9 @@ func (g galleryModel) statusBar() string {
 		middle = "type to filter · enter apply · esc cancel"
 	case g.list.FilterState() == list.FilterApplied:
 		chipLabel = "FILTER"
-		middle = "enter play · esc clear · a add · r rename · d delete · ? help · q quit"
+		middle = "enter play · esc clear · a add · r rename · d delete · k keybinds · ? help · q quit"
 	default:
-		middle = "enter play · a add · r rename · d delete · / filter · ? help · q quit"
+		middle = "enter play · a add · r rename · d delete · / filter · k keybinds · ? help · q quit"
 	}
 	if g.status != "" {
 		middle, middleStyle = g.status, g.st.status

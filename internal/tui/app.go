@@ -17,6 +17,7 @@ const (
 	screenGallery screen = iota
 	screenRendering
 	screenPlayer
+	screenKeybinds
 )
 
 // Messages exchanged between screens.
@@ -38,6 +39,7 @@ type model struct {
 	gallery     galleryModel
 	render      renderModel
 	player      playerModel
+	keybinds    keybindsModel
 	st          styles
 	cfg         config.Config
 	helpVisible bool
@@ -93,6 +95,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		galleryCmd := m.gallery.setSize(msg.Width, msg.Height)
 		m.render.setSize(msg.Width, msg.Height)
 		m.player.setSize(msg.Width, msg.Height)
+		m.keybinds.setSize(msg.Width, msg.Height)
 		if m.screen == screenPlayer {
 			return m, m.player.scheduleRefit()
 		}
@@ -122,6 +125,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case playEntryMsg:
 		return m.startPlayer(msg.entries, msg.index)
 
+	case openKeybindsMsg:
+		m.screen = screenKeybinds
+		m.keybinds = newKeybinds(m.cfg.Keys, m.st)
+		m.keybinds.setSize(m.width, m.height)
+		return m, nil
+
+	case keysChangedMsg:
+		// Adopt the edited bindings immediately (the next player launch
+		// uses them) and persist them in the background; the save result
+		// flows back to the keybinds screen's status bar.
+		m.cfg.Keys = msg.keys
+		cfg := m.cfg
+		return m, func() tea.Msg { return keysSavedMsg{err: config.Save(cfg)} }
+
 	case backToGalleryMsg:
 		m.screen = screenGallery
 		if err := m.gallery.reload(); err != nil {
@@ -138,6 +155,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.render, cmd = m.render.update(msg)
 	case screenPlayer:
 		m.player, cmd = m.player.update(msg)
+	case screenKeybinds:
+		m.keybinds, cmd = m.keybinds.update(msg)
 	}
 	return m, cmd
 }
@@ -151,6 +170,8 @@ func (m model) View() string {
 		view = m.render.view()
 	case m.screen == screenPlayer:
 		view = m.player.view()
+	case m.screen == screenKeybinds:
+		view = m.keybinds.view()
 	default:
 		view = m.gallery.view()
 	}
@@ -158,14 +179,18 @@ func (m model) View() string {
 }
 
 func (m model) helpKeyMap() help.KeyMap {
-	if m.screen == screenPlayer {
+	switch m.screen {
+	case screenPlayer:
 		return m.player.keys
+	case screenKeybinds:
+		return m.keybinds.menu
+	default:
+		return m.gallery.keys
 	}
-	return m.gallery.keys
 }
 
 func (m model) startPlayer(entries []library.Entry, index int) (tea.Model, tea.Cmd) {
-	player, cmd := newPlayer(entries, index, m.st, m.cfg.Playback.Speed)
+	player, cmd := newPlayer(entries, index, m.st, m.cfg.Playback.Speed, m.cfg.Keys)
 	player.setSize(m.width, m.height)
 	m.player = player
 	m.screen = screenPlayer

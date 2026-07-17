@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jhayashi1/ascii-tui/internal/config"
 	"github.com/jhayashi1/ascii-tui/internal/frames"
 	"github.com/jhayashi1/ascii-tui/internal/library"
 )
@@ -30,7 +31,7 @@ func newTestPlayer(t *testing.T, delays []time.Duration) playerModel {
 	if err != nil {
 		t.Fatalf("saving fixture: %v", err)
 	}
-	p, _ := newPlayer([]library.Entry{{Name: "test", Path: path}}, 0, defaultStyles(), 1)
+	p, _ := newPlayer([]library.Entry{{Name: "test", Path: path}}, 0, defaultStyles(), 1, config.DefaultKeys())
 	return p
 }
 
