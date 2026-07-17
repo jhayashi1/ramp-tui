@@ -419,7 +419,7 @@ func (p playerModel) view() string {
 	if p.err != nil {
 		return lipgloss.Place(max(1, p.width), max(1, p.height-1), lipgloss.Center, lipgloss.Center,
 			p.st.status.Render(fmt.Sprintf("error: %v", p.err))) + "\n" +
-			renderStatusBar(p.st.chipAlert, "ERROR", "esc back · ctrl+c quit", p.st.help, "", p.width, p.st)
+			renderStatusBar(p.st.chipAlert, "ERROR", "esc back", p.st.help, "", p.width, p.st)
 	}
 	if p.anim == nil {
 		return ""
