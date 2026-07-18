@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/jhayashi1/ascii-tui/internal/engine"
-	"github.com/jhayashi1/ascii-tui/internal/frames"
-	"github.com/jhayashi1/ascii-tui/internal/library"
-	"github.com/jhayashi1/ascii-tui/internal/pathutil"
+	"github.com/jhayashi1/ramp-tui/internal/engine"
+	"github.com/jhayashi1/ramp-tui/internal/frames"
+	"github.com/jhayashi1/ramp-tui/internal/library"
+	"github.com/jhayashi1/ramp-tui/internal/pathutil"
 )
 
 func init() {

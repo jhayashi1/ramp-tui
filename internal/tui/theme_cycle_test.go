@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jhayashi1/ascii-tui/internal/config"
+	"github.com/jhayashi1/ramp-tui/internal/config"
 )
 
 // TestFooterStatusAutoClears checks that the timer fired after a footer

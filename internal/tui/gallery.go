@@ -13,7 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jhayashi1/ascii-tui/internal/library"
+	"github.com/jhayashi1/ramp-tui/internal/library"
 )
 
 // statusTimeout is how long a transient footer message (a theme switch,

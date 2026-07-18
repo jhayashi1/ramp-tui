@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jhayashi1/ascii-tui/internal/config"
+	"github.com/jhayashi1/ramp-tui/internal/config"
 )
 
 // Messages crossing between the keybinds screen and app.go:

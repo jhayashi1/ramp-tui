@@ -4,12 +4,12 @@ tasks:
   build:
     desc: Build the binary into bin/
     cmds:
-      - go build -o bin/ascii-tui{{exeExt}} .
+      - go build -o bin/ramp{{exeExt}} ./cmd/ramp
 
   run:
     desc: Run the app (task run -- <args>)
     cmds:
-      - go run . {{.CLI_ARGS}}
+      - go run ./cmd/ramp {{.CLI_ARGS}}
 
   test:
     desc: Run all tests

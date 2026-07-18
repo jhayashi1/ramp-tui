@@ -1,4 +1,4 @@
-# ascii-tui
+# ramp
 
 Convert GIFs into colorized ASCII animations and play them in the terminal.
 
@@ -9,15 +9,15 @@ step required.
 <table align="center">
   <tr>
     <th>Original</th>
-    <th>ascii-tui</th>
+    <th>ramp</th>
   </tr>
   <tr>
     <td><img src="gifs/duck.gif" height="220" alt="original duck GIF" /></td>
-    <td><img src="demo/duck.gif" height="220" alt="ascii-tui playing the duck animation" /></td>
+    <td><img src="demo/duck.gif" height="220" alt="ramp playing the duck animation" /></td>
   </tr>
   <tr>
     <td><img src="gifs/deer.gif" height="220" alt="original deer GIF" /></td>
-    <td><img src="demo/deer.gif" height="220" alt="ascii-tui playing the deer animation" /></td>
+    <td><img src="demo/deer.gif" height="220" alt="ramp playing the deer animation" /></td>
   </tr>
 </table>
 <p align="center"><sub>Demo source GIFs: <a href="https://giphy.com/gifs/hamlet-duck-dance-PQHZH0iHMCmrNhRcE9">duck</a> · <a href="https://giphy.com/gifs/loop-stag-l1KdbPzEUJ5ife8Ra">deer</a>, via Giphy</sub></p>
@@ -25,28 +25,28 @@ step required.
 ## Install
 
 ```sh
-go install github.com/jhayashi1/ascii-tui@latest
+go install github.com/jhayashi1/ramp-tui/cmd/ramp@latest
 ```
 
 ## Usage
 
 ```sh
 # Open the interactive gallery of rendered animations
-ascii-tui
+ramp
 
 # Render a gif into the library and loop it
-ascii-tui path/to/animation.gif
+ramp path/to/animation.gif
 
 # Pre-render explicitly (writes to the library by default)
-ascii-tui render animation.gif
-ascii-tui render animation.gif -o animation.frames -W 120
+ramp render animation.gif
+ramp render animation.gif -o animation.frames -W 120
 
 # Drop a solid background so it plays as blank terminal space
-ascii-tui render animation.gif --filter-bg
+ramp render animation.gif --filter-bg
 
 # Play a frames file (or a gif, rendered on the fly)
-ascii-tui play animation.frames
-ascii-tui play animation.frames --once --speed 2
+ramp play animation.frames
+ramp play animation.frames --once --speed 2
 ```
 
 The gallery is a three-column layout: the library list on the left, a live
@@ -111,12 +111,12 @@ CLI arguments.
 ### Cross-machine playback
 
 `.frames` files are self-contained (frames, delays, dimensions, gzipped).
-Render on one machine, copy the file anywhere, and `ascii-tui play` it there:
+Render on one machine, copy the file anywhere, and `ramp play` it there:
 
 ```sh
-ascii-tui render giphy.gif -o giphy.frames
+ramp render giphy.gif -o giphy.frames
 scp giphy.frames other-machine:
-ssh other-machine ascii-tui play giphy.frames
+ssh other-machine ramp play giphy.frames
 ```
 
 The library lives in the platform cache directory
