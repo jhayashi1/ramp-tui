@@ -10,7 +10,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/jhayashi1/ascii-tui/internal/frames"
+	"github.com/jhayashi1/ramp-tui/internal/frames"
 )
 
 const (

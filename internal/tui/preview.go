@@ -9,9 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jhayashi1/ascii-tui/internal/engine"
-	"github.com/jhayashi1/ascii-tui/internal/frames"
-	"github.com/jhayashi1/ascii-tui/internal/library"
+	"github.com/jhayashi1/ramp-tui/internal/engine"
+	"github.com/jhayashi1/ramp-tui/internal/frames"
+	"github.com/jhayashi1/ramp-tui/internal/library"
 )
 
 // previewDebounce mirrors the player's refitDebounce: it keeps a held

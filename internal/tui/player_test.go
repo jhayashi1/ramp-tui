@@ -7,9 +7,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jhayashi1/ascii-tui/internal/config"
-	"github.com/jhayashi1/ascii-tui/internal/frames"
-	"github.com/jhayashi1/ascii-tui/internal/library"
+	"github.com/jhayashi1/ramp-tui/internal/config"
+	"github.com/jhayashi1/ramp-tui/internal/frames"
+	"github.com/jhayashi1/ramp-tui/internal/library"
 )
 
 // newTestPlayer builds a playerModel over a single entry with the given

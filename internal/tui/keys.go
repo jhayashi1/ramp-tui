@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 
-	"github.com/jhayashi1/ascii-tui/internal/config"
+	"github.com/jhayashi1/ramp-tui/internal/config"
 )
 
 var (

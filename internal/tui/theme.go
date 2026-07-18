@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jhayashi1/ascii-tui/internal/config"
+	"github.com/jhayashi1/ramp-tui/internal/config"
 )
 
 // theme is a flat set of named colors. The foreground colors accept any

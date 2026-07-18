@@ -1,4 +1,4 @@
-// Package cli implements the ascii-tui command line interface.
+// Package cli implements the ramp command line interface.
 package cli
 
 import (
@@ -7,16 +7,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jhayashi1/ascii-tui/internal/config"
-	"github.com/jhayashi1/ascii-tui/internal/engine"
-	"github.com/jhayashi1/ascii-tui/internal/library"
-	"github.com/jhayashi1/ascii-tui/internal/pathutil"
-	"github.com/jhayashi1/ascii-tui/internal/player"
-	"github.com/jhayashi1/ascii-tui/internal/tui"
+	"github.com/jhayashi1/ramp-tui/internal/config"
+	"github.com/jhayashi1/ramp-tui/internal/engine"
+	"github.com/jhayashi1/ramp-tui/internal/library"
+	"github.com/jhayashi1/ramp-tui/internal/pathutil"
+	"github.com/jhayashi1/ramp-tui/internal/player"
+	"github.com/jhayashi1/ramp-tui/internal/tui"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "ascii-tui [gif]",
+	Use:   "ramp [gif]",
 	Short: "Convert GIFs into colorized ASCII animations and play them in the terminal",
 	Long: "With no arguments, opens the interactive gallery of rendered animations.\n" +
 		"With a .gif argument, renders it into the library and plays it.",

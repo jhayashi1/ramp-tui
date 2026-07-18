@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jhayashi1/ascii-tui/internal/config"
+	"github.com/jhayashi1/ramp-tui/internal/config"
 )
 
 // fixtureKeybinds opens the keybinds screen from the gallery, isolating

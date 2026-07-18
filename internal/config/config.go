@@ -60,7 +60,7 @@ func DefaultKeys() Keys {
 }
 
 // Render holds defaults for gifs rendered through the gallery's "add"
-// flow or the `ascii-tui <gif>` shortcut.
+// flow or the `ramp <gif>` shortcut.
 type Render struct {
 	FilterBackground bool `toml:"filter_background"`
 	Complex          bool `toml:"complex"`
@@ -127,7 +127,7 @@ func Load() Config {
 	cfg, err := load(path)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "ascii-tui: %v; using defaults\n", err)
+			fmt.Fprintf(os.Stderr, "ramp: %v; using defaults\n", err)
 		}
 		return Defaults()
 	}

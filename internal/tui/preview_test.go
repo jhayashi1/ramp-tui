@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jhayashi1/ascii-tui/internal/frames"
-	"github.com/jhayashi1/ascii-tui/internal/library"
+	"github.com/jhayashi1/ramp-tui/internal/frames"
+	"github.com/jhayashi1/ramp-tui/internal/library"
 )
 
 func saveTinyEntry(t *testing.T, dir, name string) library.Entry {

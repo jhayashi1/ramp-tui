@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/sahilm/fuzzy"
 
-	"github.com/jhayashi1/ascii-tui/internal/pathutil"
+	"github.com/jhayashi1/ramp-tui/internal/pathutil"
 )
 
 const (

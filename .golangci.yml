@@ -30,4 +30,4 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/jhayashi1/ascii-tui)
+        - prefix(github.com/jhayashi1/ramp-tui)
